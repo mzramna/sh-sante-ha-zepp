@@ -12,7 +12,7 @@ export const ENTITY_ATTRIBUTES = {
   climate: ["hvac_modes", "temperature", "current_temperature", "min_temp", "max_temp", "target_temp_step"],
   cover: ["current_position", "supported_features"],
   fan: ["percentage", "percentage_step", "oscillating"],
-  vacuum: ["battery_level"],
+  vacuum: ["battery_level", "supported_features"],
   alarm_control_panel: ["code_format", "code_arm_required"],
 };
 //   name = friendly_name || entity_id; unit = unit_of_measurement || ""; area = "" (reserved).

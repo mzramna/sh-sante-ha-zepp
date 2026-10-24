@@ -30,7 +30,7 @@ jobs:
       # No `npm ci`: there is no lockfile in git.
       - run: npm install
 
-      - run: npm test
+      - run: npm run test:coverage
       - run: npm run check
 
       # zeus needs network access to Zepp's servers to fetch the device list,

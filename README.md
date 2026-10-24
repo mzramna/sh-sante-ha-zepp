@@ -12,6 +12,8 @@ Control your Home Assistant devices from your Zepp OS watch and send health data
 - Send health data to Home Assistant with [zepp2hass](https://github.com/davidepalleschi/zepp2hass) (install via HACS), the `mobile_app` integration (the watch is registered as a device with persistent sensors), or legacy REST states.
 - LAN-first URL failover: the local URL is tried first, then the external one.
 - Camera snapshots: experimental, off by default (`--feature camera=true`).
+- Sleep as Android: start/stop sleep tracking from the watch through Home Assistant (see below).
+- Background health sync every N minutes without waking the screen (app service + alarm).
 
 ## ⌚ Which build to install
 
@@ -70,6 +72,14 @@ Add `*.api-4.5.js` variants only for modules that change. CI builds `--api all`,
    - For zepp2hass: the **webhook URL**. For mobile_app: press **Register in Home Assistant**.
    - **Sync interval** in minutes.
 
+### 😴 Sleep as Android
+The Zepp phone side cannot send Android intents, so the watch goes through Home Assistant and the [HA Companion app](https://companion.home-assistant.io/docs/notifications/notification-commands/) on the phone that runs Sleep as Android:
+1. In the settings page, set **Sleep as Android notify service** to the Companion notify service of that phone, e.g. `mobile_app_pixel_8` (a `notify.` prefix is removed).
+2. Optionally set a **status entity** that reflects Sleep as Android (e.g. an `input_boolean` you switch from the [`sleep_as_android` integration](https://www.home-assistant.io/integrations/sleep_as_android/) events).
+3. The watch's **Sleep as Android** page sends `command_broadcast_intent` with `com.urbandroid.sleep.alarmclock.START_SLEEP_TRACK` / `STOP_SLEEP_TRACK`.
+
+Not supported: snooze/dismiss (intent names unconfirmed) and using the watch as Sleep as Android's motion/heart-rate sensor (that needs an Android bridge such as Gadgetbridge or Notify for Amazfit, which already exist).
+
 A step-by-step guide in Spanish: [general steps](https://aguacatec.es/instalar-ha-en-tu-reloj-zepp/).
 
 ## ⚠️ Limitations
@@ -82,9 +92,13 @@ A step-by-step guide in Spanish: [general steps](https://aguacatec.es/instalar-h
 ## 🧪 Development
 ```sh
 npm install
-npm test         # node:test unit tests in test/
-npm run check    # tsc type check (jsconfig.json)
+npm test               # node:test suite: watch pages, phone side, app service, settings, build script
+npm run test:coverage  # same, with per-file coverage and minimum thresholds
+npm run check          # tsc type check against @zeppos/device-types and ZML typings
+npm run i18n           # regenerate page/i18n/*.po from i18n-src/*.json
 ```
+
+Tests run the real watch and phone code in Node: `test/helpers/setup.js` maps every `@zos/*` and `@zeppos/zml/*` import to small mocks in `test/mocks/` and provides the runtime globals (`Page`, `AppService`, `AppSideService`, `settings`, `fetch`). See `test/helpers/watch.js` and `test/helpers/phone.js`.
 
 Project layout:
 - `app-side/`: phone side (HTTP to Home Assistant, LAN-first failover, sensor sync, mobile_app registration).
@@ -93,8 +107,9 @@ Project layout:
 - `utils/`: shared watch UI and theme tokens.
 - `shared/`: watch-to-phone protocol, used by both sides.
 - `setting/`: Zepp App settings page and translations.
-- `legacy/`: the original Zepp OS 1.0 app. Frozen: same behaviour, no new features.
-- `scripts/`: build script.
+- `legacy/`: the original Zepp OS 1.0 app. No new features; bug fixes only (reverse-proxy base path, implicit globals, side requests that never answered on HTTP errors).
+- `scripts/`: build, i18n and icon generator scripts.
+- `test/`: automated tests and the Zepp OS/ZML mocks.
 - `docs/`: notes.
 
 ## 🆘 Need help?
