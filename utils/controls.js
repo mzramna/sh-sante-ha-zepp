@@ -3,6 +3,9 @@
 // Bits of a cover's supported_features (HA CoverEntityFeature).
 export const COVER_FEATURE = { OPEN: 1, CLOSE: 2, SET_POSITION: 4, STOP: 8 };
 
+// Bits of a vacuum's supported_features (HA VacuumEntityFeature).
+export const VACUUM_FEATURE = { PAUSE: 4, RETURN_HOME: 16, LOCATE: 512, START: 8192 };
+
 export const supportsFeature = (features, bit) => ((features || 0) & bit) !== 0;
 
 const HVAC_PREFERRED = ["off", "heat", "cool", "auto"];
@@ -28,21 +31,6 @@ export function rowX(count, w, gap = 8, centre = 240) {
 export function alarmPolicy(attrs = {}) {
   const needsCode = Boolean(attrs.code_format);
   return { needsCode, canArm: !needsCode || attrs.code_arm_required === false, canDisarm: !needsCode };
-}
-
-// First tap arms, a second tap within windowMs confirms. Pages redraw on each result.
-export function createConfirmTap(windowMs = 3000) {
-  let armedAt = -Infinity;
-  return {
-    tap(now) {
-      if (now - armedAt <= windowMs) {
-        armedAt = -Infinity;
-        return true;
-      }
-      armedAt = now;
-      return false;
-    },
-  };
 }
 
 // Trailing debounce: fn runs once, ms after the last call. cancel() drops a pending call.

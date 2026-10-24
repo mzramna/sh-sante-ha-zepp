@@ -93,6 +93,32 @@ test("stop needs two taps: the first only asks for confirmation", async () => {
   page.onDestroy();
 });
 
+// Presses a button synchronously (mock timers would stall flush()).
+const press = (w) => w.props.click_func(w);
+
+test("stop: a tap exactly 3 s after the first one is a new first tap", async (t) => {
+  const page = await openPage();
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  press(findText("stop_tracking"));
+  assert.ok(findText("tap_again_to_confirm"));
+  t.mock.timers.tick(3000);
+  assert.ok(findText("stop_tracking"), "the prompt has reset");
+  press(findText("stop_tracking"));
+  assert.equal(state.requests.filter((r) => r.method === "CALL_SERVICE").length, 0, "one tap must not stop");
+  assert.ok(findText("tap_again_to_confirm"));
+  page.onDestroy();
+});
+
+test("stop: destroying the page cancels the prompt timer", async (t) => {
+  const page = await openPage();
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  press(findText("stop_tracking"));
+  const drawn = state.deleted.length;
+  page.onDestroy();
+  t.mock.timers.tick(3000);
+  assert.equal(state.deleted.length, drawn, "no redraw after destroy");
+});
+
 test("a failed command toasts the error and does not refresh", async () => {
   const page = await openPage();
   respond({ GET_CONFIG: CONFIGURED, GET_ENTITY: entity, CALL_SERVICE: new Error("No response from https://h") });

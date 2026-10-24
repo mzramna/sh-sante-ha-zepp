@@ -4,7 +4,7 @@ import { getText } from "@zos/i18n";
 import { METHOD } from "../../shared/protocol.js";
 import { COLOR, CX, FONT, MARGIN, W } from "../../utils/theme.js";
 import { actionButton, clear, createTracked, entityCard, loading, message, title, toast } from "../../utils/ui.js";
-import { createConfirmTap, wait } from "../../utils/controls.js";
+import { wait } from "../../utils/controls.js";
 import { SAA_ACTIONS, saaCommand } from "../../utils/sleep.js";
 
 const CONFIRM_MS = 3000;
@@ -20,7 +20,6 @@ Page(
       this.state.list = [];
       this.state.alive = true;
       this.state.armed = false;
-      this.state.confirm = createConfirmTap(CONFIRM_MS);
       loading(this.state.list);
       this.load();
     },
@@ -81,48 +80,48 @@ Page(
     },
 
     // Stopping ends the recording, so it takes two taps like disarming an alarm.
+    // The timer resets the prompt; onDestroy clears it, so it never fires on a dead page.
     onStop() {
-      if (!this.state.confirm.tap(Date.now())) {
-        this.state.armed = true;
-        this.render();
-        clearTimeout(this.state.timer);
-        this.state.timer = setTimeout(() => {
-          if (!this.state.alive) return;
-          this.state.armed = false;
+      const s = this.state;
+      if (!s.armed) {
+        s.armed = true;
+        s.timer = setTimeout(() => {
+          s.armed = false;
           this.render();
         }, CONFIRM_MS);
+        this.render();
         return;
       }
-      clearTimeout(this.state.timer);
-      this.state.armed = false;
+      clearTimeout(s.timer);
+      s.armed = false;
       this.act(SAA_ACTIONS.STOP);
     },
 
     draw() {
       const list = this.state.list;
-      title(list, getText("sleep_as_android"), 16);
+      title(list, getText("sleep_as_android"));
       if (!this.state.config.saaNotifyService) {
         message(list, getText("saa_not_configured"));
         return;
       }
 
       if (this.state.entity) {
-        entityCard(list, { y: 64, entity: this.state.entity, onClick: undefined });
+        entityCard(list, { y: 80, entity: this.state.entity, onClick: undefined });
       } else if (this.state.statusError) {
         createTracked(list, hmUI.widget.TEXT, {
-          x: MARGIN, y: 64, w: W - MARGIN * 2, h: 96,
+          x: MARGIN, y: 80, w: W - MARGIN * 2, h: 96,
           text: this.state.statusError, text_size: FONT.small, color: COLOR.danger,
           align_h: hmUI.align.CENTER_H, align_v: hmUI.align.CENTER_V, text_style: hmUI.text_style.WRAP,
         });
       }
 
       actionButton(list, {
-        x: CX - 140, y: 172, w: 280, h: 72, color: SAA_COLOR,
+        x: CX - 140, y: 188, w: 280, h: 72, color: SAA_COLOR,
         text: getText("start_tracking"), onClick: () => this.act(SAA_ACTIONS.START),
       });
       const armed = this.state.armed;
       actionButton(list, {
-        x: CX - 140, y: 260, w: 280, h: 72, color: armed ? COLOR.danger : COLOR.card,
+        x: CX - 140, y: 276, w: 280, h: 72, color: armed ? COLOR.danger : COLOR.card,
         text: getText(armed ? "tap_again_to_confirm" : "stop_tracking"), onClick: () => this.onStop(),
       });
     },

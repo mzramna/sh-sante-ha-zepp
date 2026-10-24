@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import {
-  COVER_FEATURE, supportsFeature, pickHvacModes, rowX, alarmPolicy, createConfirmTap, debounce, wait,
+  COVER_FEATURE, VACUUM_FEATURE, supportsFeature, pickHvacModes, rowX, alarmPolicy, debounce, wait,
 } from "../utils/controls.js";
 
 test("cover feature bits", () => {
@@ -31,13 +31,12 @@ test("alarm code policy", () => {
     { needsCode: true, canArm: true, canDisarm: false });
 });
 
-test("confirm tap: first arms, second within window confirms", () => {
-  const t = createConfirmTap(3000);
-  assert.equal(t.tap(0), false);
-  assert.equal(t.tap(1000), true);
-  assert.equal(t.tap(2000), false);
-  assert.equal(t.tap(6000), false, "window expired, arms again");
-  assert.equal(t.tap(6500), true);
+test("vacuum feature bits", () => {
+  const features = 4 | 8192;
+  assert.equal(supportsFeature(features, VACUUM_FEATURE.START), true);
+  assert.equal(supportsFeature(features, VACUUM_FEATURE.PAUSE), true);
+  assert.equal(supportsFeature(features, VACUUM_FEATURE.RETURN_HOME), false);
+  assert.equal(supportsFeature(features, VACUUM_FEATURE.LOCATE), false);
 });
 
 test("debounce runs once with the last arguments", async () => {
