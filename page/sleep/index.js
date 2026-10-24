@@ -31,7 +31,7 @@ Page(
     },
 
     load() {
-      return this.request({ method: METHOD.GET_CONFIG })
+      return this.request({ method: METHOD.GET_CONFIG, params: {} })
         .then((config) => {
           if (!this.state.alive) return;
           this.state.config = config;
@@ -107,7 +107,7 @@ Page(
       }
 
       if (this.state.entity) {
-        entityCard(list, { y: 64, entity: this.state.entity });
+        entityCard(list, { y: 64, entity: this.state.entity, onClick: undefined });
       } else if (this.state.statusError) {
         createTracked(list, hmUI.widget.TEXT, {
           x: MARGIN, y: 64, w: W - MARGIN * 2, h: 96,

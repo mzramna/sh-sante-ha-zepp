@@ -1,5 +1,7 @@
-// px is identity: tests reason in design units.
-export const px = (v) => v;
+// px is identity unless a test sets state.pxScale: tests reason in design units.
+import { state } from "../state.js";
+
+export const px = (v) => v * state.pxScale;
 const logger = { log() {}, debug() {}, info() {}, warn() {}, error() {}, getLogger: () => logger };
 export const log = logger;
 export class EventBus {

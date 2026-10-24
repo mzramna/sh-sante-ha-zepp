@@ -15,6 +15,7 @@ export const state = {
     throw new Error("no responder set");
   },
   calls: [], // ZML call() payloads
+  pxScale: 1, // px() multiplier (zos/utils mock); 1 = identity
 };
 
 export function reset() {
@@ -30,6 +31,7 @@ export function reset() {
   state.sensors = {};
   state.requests = [];
   state.calls = [];
+  state.pxScale = 1;
   state.respond = async () => {
     throw new Error("no responder set");
   };
