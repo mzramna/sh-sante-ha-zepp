@@ -1,6 +1,3 @@
-msgid "Search"
-msgstr "Search"
-
 msgid "Access"
 msgstr "Home Assistant Access"
 
@@ -16,20 +13,92 @@ msgstr "Long access token"
 msgid "FromProfile"
 msgstr "Create it from your profile in HA"
 
-msgid "UpdateSensor"
-msgstr "Update sensor data to HA every hour (BETA)"
-
-msgid "WorksBetter"
-msgstr "It works better if you turn all notifications OFF"
-
 msgid "Entities"
 msgstr "Entities"
 
 msgid "SearchEntities"
-msgstr "Search for the entities you want to control"
-
-msgid "SearchEntitiesEG"
-msgstr "You can search for an entity id (e.g. light.bulb), a whole domain (e.g. light), or leave it empty to show all your controllable entities (media player, light, switch, input_boolean, script, automation and binary sensor entities are supported)"
+msgstr "Search for the entities you want on the watch"
 
 msgid "Top"
 msgstr "Top"
+
+msgid "Favorite"
+msgstr "Favorite"
+
+msgid "Filter"
+msgstr "Filter"
+
+msgid "Refresh entities"
+msgstr "Refresh entities"
+
+msgid "Loads your entities from Home Assistant. Your choices are kept."
+msgstr "Loads your entities from Home Assistant. Your choices are kept."
+
+msgid "Tap Refresh entities to load them from Home Assistant."
+msgstr "Tap Refresh entities to load them from Home Assistant."
+
+msgid "No entity matches the filter."
+msgstr "No entity matches the filter."
+
+msgid "Health data sync"
+msgstr "Health data sync"
+
+msgid "Send health data to"
+msgstr "Send health data to"
+
+msgid "Off"
+msgstr "Off"
+
+msgid "zepp2hass"
+msgstr "zepp2hass"
+
+msgid "Mobile app"
+msgstr "Mobile app"
+
+msgid "REST API"
+msgstr "REST API"
+
+msgid "Sync every"
+msgstr "Sync every"
+
+msgid "zepp2hass webhook URL"
+msgstr "zepp2hass webhook URL"
+
+msgid "Must start with http:// or https://"
+msgstr "Must start with http:// or https://"
+
+msgid "Register in Home Assistant"
+msgstr "Register in Home Assistant"
+
+msgid "Registered in Home Assistant"
+msgstr "Registered in Home Assistant"
+
+msgid "Not registered yet"
+msgstr "Not registered yet"
+
+msgid "No sync yet"
+msgstr "No sync yet"
+
+msgid "Last sync"
+msgstr "Last sync"
+
+msgid "Last sync failed"
+msgstr "Last sync failed"
+
+msgid "Sleep as Android"
+msgstr "Sleep as Android"
+
+msgid "Needs the Home Assistant Companion app on the phone and the sleep_as_android integration."
+msgstr "Needs the Home Assistant Companion app on the phone and the sleep_as_android integration."
+
+msgid "Notify service"
+msgstr "Notify service"
+
+msgid "Letters, digits and _ only, e.g. mobile_app_pixel_8"
+msgstr "Letters, digits and _ only, e.g. mobile_app_pixel_8"
+
+msgid "Status entity"
+msgstr "Status entity"
+
+msgid "Entity id like sensor.sleep_as_android, or empty"
+msgstr "Entity id like sensor.sleep_as_android, or empty"

@@ -1,12 +1,23 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { state, reset, respond, open, texts, findText, click, flush, sleep } from "./helpers/watch.js";
+import { state, reset, respond, texts, findText, click, flush, sleep } from "./helpers/watch.js";
 import { COLOR, CX, DOMAINS } from "../utils/theme.js";
 
-// Every page a test opens is destroyed afterwards, so its timers never leak into the next test.
+// Each page module is imported once per file (so coverage counts it). A test opens a shallow copy
+// of the definition with a fresh state, and every page a test opens is destroyed afterwards,
+// so its timers never leak into the next test.
+const definitions = new Map();
 const opened = [];
 async function openPage(path, params) {
-  const page = await open(path, params);
+  if (!definitions.has(path)) {
+    await import(new URL(`../${path}`, import.meta.url).href);
+    definitions.set(path, globalThis.__zepp.page);
+  }
+  const pristine = definitions.get(path);
+  const page = { ...pristine, state: structuredClone(pristine.state || {}) };
+  page.onInit?.(params === undefined ? undefined : JSON.stringify(params));
+  page.build?.();
+  await flush();
   opened.push(page);
   return page;
 }
