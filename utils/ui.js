@@ -108,8 +108,9 @@ export function valueRing(list, { y, value, min = 0, max = 100, step = 10, unit 
   };
   set(value);
   const change = (d) => {
+    const before = current;
     set(current + d);
-    onChange && onChange(current);
+    if (current !== before) onChange && onChange(current);
   };
   actionButton(list, { x: CX - 150, y: y + size + 8, w: 120, text: "−", onClick: () => change(-step) });
   actionButton(list, { x: CX + 30, y: y + size + 8, w: 120, text: "+", onClick: () => change(step) });

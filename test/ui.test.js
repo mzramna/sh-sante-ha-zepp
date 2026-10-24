@@ -253,13 +253,18 @@ test("valueRing without onChange still moves, and handles a zero-width range", (
   assert.equal(list[2].props.text, "5%");
 });
 
-test("valueRing button that calls onChange at the clamp edge reports the unchanged value", { todo: "bug: valueRing calls onChange even when the clamp leaves the value unchanged (wasted service call)" }, () => {
+test("valueRing does not call onChange when + or − is pressed at the clamp edge", () => {
   reset();
   const list = [];
   const changes = [];
   valueRing(list, { y: 0, value: 100, onChange: (v) => changes.push(v) });
   const plus = list.find((w) => w.props.text === "+");
   plus.props.click_func(plus);
+  assert.deepEqual(changes, []);
+  const low = [];
+  valueRing(low, { y: 0, value: 0, onChange: (v) => changes.push(v) });
+  const minus = low.find((w) => w.props.text === "−");
+  minus.props.click_func(minus);
   assert.deepEqual(changes, []);
 });
 
