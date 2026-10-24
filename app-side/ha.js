@@ -2,35 +2,19 @@
 // failover live in http.js; this file maps HA data to the watch contract.
 import { SETTING, ENTITY_ATTRIBUTES } from "../shared/protocol.js";
 import { DOMAINS } from "../utils/theme.js";
+import { ENTITY_ID, NAME, parseJson, readList } from "../shared/validate.js";
 import { haRequest, HttpError } from "./http.js";
 
 const get = (key) => settings.settingsStorage.getItem(key);
 const set = (key, value) => settings.settingsStorage.setItem(key, value);
 
-// Entity and service names end up in URLs and in the Jinja template, so only HA's format passes.
-const ENTITY_ID = /^[a-z0-9_]+\.[a-z0-9_]+$/;
-const NAME = /^[a-z0-9_]+$/;
 const isEntityId = (id) => typeof id === "string" && ENTITY_ID.test(id);
 const isName = (s) => typeof s === "string" && NAME.test(s);
 const validIds = (list) => (Array.isArray(list) ? list.filter(isEntityId) : []);
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
-function parseJson(text, fallback) {
-  try {
-    const value = JSON.parse(text);
-    return value === null || value === undefined ? fallback : value;
-  } catch (e) {
-    return fallback;
-  }
-}
-
-function readList(key) {
-  const value = parseJson(get(key), []);
-  return Array.isArray(value) ? value : [];
-}
-
 function enabledIds() {
-  return validIds(readList(SETTING.ENTITY_LIST).filter((item) => item && item.value === true).map((item) => item.key));
+  return validIds(readList(get(SETTING.ENTITY_LIST)).filter((item) => item && item.value === true).map((item) => item.key));
 }
 
 // Maps one HA state (plus its area name) to the watch's Entity shape (shared/protocol.js).
@@ -173,7 +157,7 @@ export async function refreshEntityList() {
 
   const merged = [];
   const seen = new Set();
-  for (const item of readList(SETTING.ENTITY_LIST)) {
+  for (const item of readList(get(SETTING.ENTITY_LIST))) {
     if (!item || !live.has(item.key) || seen.has(item.key)) continue;
     seen.add(item.key);
     merged.push({ key: item.key, title: titleOf(live.get(item.key)), value: item.value === true });

@@ -145,13 +145,14 @@ test("climate: no ring or current line when HA omits the temperatures", async ()
   assert.equal(findText("°"), undefined);
 });
 
-test("climate: destroying the page drops a pending temperature change", async () => {
+test("climate: destroying the page sends a pending temperature change", async () => {
   reset();
   const page = await climatePage();
   await click(button("+"));
   page.onDestroy();
   await sleep(700);
-  assert.equal(sent("CALL_SERVICE").length, 0);
+  // A change still waiting when the page closes is sent, not lost.
+  assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
 test("climate: destroying the page during a mode change stops the reload", async () => {
@@ -285,13 +286,14 @@ test("cover: a failed command toasts the error", async () => {
   assert.deepEqual(state.toasts, ["Error: jammed"]);
 });
 
-test("cover: destroying the page drops a pending position change", async () => {
+test("cover: destroying the page sends a pending position change", async () => {
   reset();
   const page = await coverPage();
   await click(button("+"));
   page.onDestroy();
   await sleep(700);
-  assert.equal(sent("CALL_SERVICE").length, 0);
+  // A change still waiting when the page closes is sent, not lost.
+  assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
 test("cover: a reply that arrives after onDestroy is not drawn", async () => {
@@ -411,13 +413,14 @@ test("fan: a failed command toasts the error", async () => {
   assert.deepEqual(state.toasts, ["Error: stuck"]);
 });
 
-test("fan: destroying the page drops a pending speed change", async () => {
+test("fan: destroying the page sends a pending speed change", async () => {
   reset();
   const page = await fanPage();
   await click(button("+"));
   page.onDestroy();
   await sleep(700);
-  assert.equal(sent("CALL_SERVICE").length, 0);
+  // A change still waiting when the page closes is sent, not lost.
+  assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
 test("fan: a reply that arrives after onDestroy is not drawn", async () => {

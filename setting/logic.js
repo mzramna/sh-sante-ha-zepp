@@ -1,11 +1,9 @@
 // Pure helpers of the phone settings page (setting/index.js), kept apart so Node can test them.
 import { DOMAINS } from "../utils/theme.js";
+import { ENTITY_ID, NAME, readList } from "../shared/validate.js";
 
 export const SENSOR_MODES = ["none", "zepp2hass", "mobile_app", "rest"];
 export const SYNC_INTERVALS = [1, 5, 10, 15, 30, 60];
-
-const NOTIFY_SERVICE = /^[a-z0-9_]+$/;
-const ENTITY_ID = /^[a-z0-9_]+\.[a-z0-9_]+$/;
 
 export const isHttpUrl = (s) => /^https?:\/\/\S/.test(s);
 
@@ -13,7 +11,7 @@ export const isHttpUrl = (s) => /^https?:\/\/\S/.test(s);
 export function normalizeNotifyService(raw) {
   const value = String(raw).trim().replace(/^notify\./, "");
   if (value === "") return "";
-  return NOTIFY_SERVICE.test(value) ? value : null;
+  return NAME.test(value) ? value : null;
 }
 
 // Entity id of the Sleep as Android status; "" clears it; null when invalid.
@@ -22,20 +20,6 @@ export function normalizeStatusEntity(raw) {
   if (value === "") return "";
   return ENTITY_ID.test(value) ? value : null;
 }
-
-export function parseJson(text, fallback) {
-  try {
-    const value = JSON.parse(text);
-    return value === null || value === undefined ? fallback : value;
-  } catch (e) {
-    return fallback;
-  }
-}
-
-export const readList = (text) => {
-  const value = parseJson(text, []);
-  return Array.isArray(value) ? value : [];
-};
 
 // Entries of the stored entity list that have a key; the order is kept.
 export const readEntities = (text) => readList(text).filter((item) => item && typeof item.key === "string");

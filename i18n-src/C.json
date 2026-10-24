@@ -3,7 +3,6 @@
   "done": { "en-US": "Done", "pt-BR": "Feito", "es-ES": "Hecho" },
   "current": { "en-US": "Current", "pt-BR": "Atual", "es-ES": "Actual" },
   "battery": { "en-US": "Battery", "pt-BR": "Bateria", "es-ES": "Batería" },
-  "power": { "en-US": "Power", "pt-BR": "Ligar", "es-ES": "Encender" },
   "oscillate": { "en-US": "Oscillate", "pt-BR": "Oscilar", "es-ES": "Oscilar" },
   "open": { "en-US": "Open", "pt-BR": "Abrir", "es-ES": "Abrir" },
   "stop": { "en-US": "Stop", "pt-BR": "Parar", "es-ES": "Parar" },

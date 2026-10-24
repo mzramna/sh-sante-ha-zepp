@@ -95,8 +95,8 @@ function appJson(profile, args, features) {
   const target = json.targets.common;
   target.platforms = args.shape ? args.shape.map((s) => SHAPES[s]) : profile.platforms;
   if (!features.appService) delete target.module["app-service"];
-  const dropped = [!features.camera && "page/camera/", !features.sleepAsAndroid && "page/sleep/"].filter(Boolean);
-  target.module.page.pages = target.module.page.pages.filter((p) => !dropped.some((d) => p.startsWith(d)));
+  // Every page the home screen can open stays registered; the camera page shows camera_disabled itself.
+  if (!features.sleepAsAndroid) target.module.page.pages = target.module.page.pages.filter((p) => !p.startsWith("page/sleep/"));
   return json;
 }
 

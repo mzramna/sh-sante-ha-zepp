@@ -127,3 +127,37 @@ test("pollMs reloads periodically until destroyed", async () => {
   await sleep(60);
   assert.equal(requestsOf("GET_ENTITY").length, n);
 });
+
+test("a debounced change still waiting when the page is left is sent, and its reply draws nothing", async () => {
+  respond({ GET_ENTITY: ENTITY, CALL_SERVICE: { ok: true } });
+  const { page } = make();
+  page.onInit(JSON.stringify({ entity_id: "fan.f" }));
+  await flush();
+  const set = page.debounced("pct", (v) => page.act("set_percentage", { percentage: v }), 50);
+  set(70);
+  page.onDestroy();
+  await flush();
+  assert.deepEqual(requestsOf("CALL_SERVICE")[0].params, {
+    domain: "fan", service: "set_percentage", entity_id: "fan.f", data: { percentage: 70 },
+  });
+  assert.deepEqual(state.toasts, [], "the reply skips the toast");
+  await sleep(1050);
+  assert.equal(requestsOf("GET_ENTITY").length, 1, "no reload once the page is gone");
+});
+
+test("every debounced key still waiting is sent, each with its last value, when the page is left", async () => {
+  respond({ GET_ENTITY: ENTITY });
+  const { page } = make();
+  page.onInit(JSON.stringify({ entity_id: "fan.f" }));
+  await flush();
+  const sent = [];
+  const a = page.debounced("a", (v) => sent.push(["a", v]), 50);
+  const b = page.debounced("b", (v) => sent.push(["b", v]), 50);
+  a(1);
+  b(2);
+  a(3);
+  page.onDestroy();
+  assert.deepEqual(sent, [["a", 3], ["b", 2]]);
+  await sleep(80);
+  assert.deepEqual(sent, [["a", 3], ["b", 2]], "nothing is sent twice");
+});

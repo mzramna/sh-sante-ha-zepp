@@ -132,13 +132,14 @@ test("light: an entity reload does not redraw the brightness ring while it is be
   assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
-test("light: destroying the page drops a pending brightness change", async () => {
+test("light: destroying the page sends a pending brightness change", async () => {
   reset();
   const page = await lightPage();
   await click(button("+"));
   page.onDestroy();
   await sleep(700);
-  assert.equal(sent("CALL_SERVICE").length, 0);
+  // A change still waiting when the page closes is sent, not lost.
+  assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
 test("light: onResume reloads the entity once it has been loaded", async () => {
@@ -390,13 +391,14 @@ test("media: polls the entity every 10 s and stops polling on destroy", async (t
   assert.equal(sent("GET_ENTITY").length, 3);
 });
 
-test("media: destroying the page drops a pending volume change", async () => {
+test("media: destroying the page sends a pending volume change", async () => {
   reset();
   const page = await playerPage();
   await click(button("+"));
   page.onDestroy();
   await sleep(700);
-  assert.equal(sent("CALL_SERVICE").length, 0);
+  // A change still waiting when the page closes is sent, not lost.
+  assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
 test("media: a successful command reloads the entity 1 s later", async () => {

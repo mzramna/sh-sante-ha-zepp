@@ -17,15 +17,10 @@ const ENTITIES = [
   { key: "climate.x", title: "X", value: false },
 ];
 
-// One page instance per call; its errors map persists across builds of the same instance.
-function page() {
-  return { ...definition, state: { errors: {} } };
-}
 function open(initial = {}) {
   const store = installSettings(initial);
-  const p = page();
-  const build = () => p.build({ settingsStorage: globalThis.settings.settingsStorage });
-  return { store, p, build, tree: build() };
+  const build = () => definition.build({ settingsStorage: globalThis.settings.settingsStorage });
+  return { store, build, tree: build() };
 }
 
 function nodes(tree) {
@@ -47,10 +42,10 @@ const one = (tree, type, label) => {
 };
 const textNodes = (tree) => nodes(tree).filter((n) => n.type === "Text").map((n) => n.children);
 
-test("access fields save as typed; the token is trimmed; refresh stamps the refresh key", () => {
+test("access fields are saved trimmed; the refresh button stamps the refresh key", () => {
   const { store, tree } = open();
-  one(tree, "TextInput", "IPLocal").props.onChange("http://ha.local:8123");
-  one(tree, "TextInput", "IPExternal").props.onChange("https://ha.example.com");
+  one(tree, "TextInput", "IPLocal").props.onChange("http://ha.local:8123 ");
+  one(tree, "TextInput", "IPExternal").props.onChange(" https://ha.example.com");
   one(tree, "TextInput", "LongToken").props.onChange("  tok ");
   assert.equal(store.get(SETTING.LOCAL_URL), "http://ha.local:8123");
   assert.equal(store.get(SETTING.EXTERNAL_URL), "https://ha.example.com");
@@ -100,7 +95,7 @@ test("entities: empty hint, filter with no match, rows with enable, favourite an
 });
 
 test("health data: mode saves, interval appears for any mode but off, URL needs http(s)", () => {
-  const { store, p, build } = open();
+  const { store, build } = open();
   let tree = build();
   one(tree, "Select", "Send health data to").props.onChange("zepp2hass");
   assert.equal(store.get(SETTING.SENSOR_MODE), "zepp2hass");
@@ -119,7 +114,7 @@ test("health data: mode saves, interval appears for any mode but off, URL needs 
   url().props.onChange("https://z.example/hook");
   assert.equal(store.get(SETTING.ZEPP2HASS_URL), "https://z.example/hook");
   assert.equal(textNodes(build()).includes("Must start with http:// or https://"), false, "error cleared");
-  assert.equal(p.state.errors.zepp2hass, undefined);
+  assert.equal(store.get("settingsErrors"), "{}");
 });
 
 test("health data: mobile_app registers, shows the registration state and the result", () => {

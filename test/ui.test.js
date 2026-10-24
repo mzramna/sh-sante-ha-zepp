@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import * as hmUI from "@zos/ui";
 import { state, reset } from "./helpers/watch.js";
 import {
@@ -8,6 +9,11 @@ import {
 } from "../utils/ui.js";
 import { FEATURES } from "../config/build.js";
 import { COLOR, FONT, W, TOP, CX, DOMAINS, domainOf, domainMeta } from "../utils/theme.js";
+
+// The CommonJS build script and config, loaded the way scripts/build.js itself does.
+const require = createRequire(import.meta.url);
+const { appJson } = require("../scripts/build.js");
+const buildConfig = require("../build.config.js");
 
 const ent = (entity_id, state, extra = {}) => ({ entity_id, name: `name of ${entity_id}`, state, ...extra });
 const withFeature = (name, value, fn) => {
@@ -282,12 +288,14 @@ test("theme: domainOf and domainMeta fall back to the sensor entry for unknown d
   assert.equal(domainMeta("weird.x"), DOMAINS.sensor);
 });
 
-test("theme: every DOMAINS icon exists in the watch assets and every page route is in the app template", () => {
+test("theme: every DOMAINS icon exists in the watch assets and every page route is in the built app.json", () => {
   const icons = new URL("../assets/common.r/icons/", import.meta.url);
-  const pages = JSON.parse(readFileSync(new URL("../app.template.json", import.meta.url), "utf8")).targets.common.module.page.pages;
+  // What ships for API 4.0 with its default features: a tap must never open an unregistered page.
+  const profile = buildConfig.profiles["4.0"];
+  const pages = appJson(profile, { debug: false, shape: null }, profile.features).targets.common.module.page.pages;
   for (const [domain, meta] of Object.entries(DOMAINS)) {
     assert.ok(existsSync(new URL(meta.icon, icons)), `${domain}: icon ${meta.icon}`);
-    if (meta.page) assert.ok(pages.includes(meta.page.replace(/^\//, "")), `${domain}: page ${meta.page}`);
+    if (meta.page) assert.ok(pages.includes(meta.page), `${domain}: page ${meta.page}`);
     assert.ok(!(meta.page && meta.tap), `${domain}: a domain taps either opens a page or runs a service`);
   }
 });

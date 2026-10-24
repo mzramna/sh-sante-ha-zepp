@@ -33,15 +33,4 @@ export function alarmPolicy(attrs = {}) {
   return { needsCode, canArm: !needsCode || attrs.code_arm_required === false, canDisarm: !needsCode };
 }
 
-// Trailing debounce: fn runs once, ms after the last call. cancel() drops a pending call.
-export function debounce(fn, ms = 600) {
-  let timer = null;
-  const debounced = (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  };
-  debounced.cancel = () => clearTimeout(timer);
-  return debounced;
-}
-
 export const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

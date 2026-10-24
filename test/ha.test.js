@@ -204,6 +204,22 @@ test("haRequest fails over to the external URL on a network error", async () => 
   assert.equal(e.name, "A");
 });
 
+test("haRequest trims stored addresses, so a stray space does not reach the URL", async () => {
+  setStore({
+    [SETTING.LOCAL_URL]: "  http://local:8123 ",
+    [SETTING.EXTERNAL_URL]: "https://ext.example/ ",
+    [SETTING.TOKEN]: "t",
+  });
+  stubFetch((opts) => {
+    if (opts.url.startsWith("http://local")) throw new Error("ECONNREFUSED");
+    return json(200, {});
+  });
+
+  await haRequest("/api/states");
+
+  assert.deepEqual(calls.map((c) => c.url), ["http://local:8123/api/states", "https://ext.example/api/states"]);
+});
+
 test("haRequest reports HTTP 401 without trying the next URL", async () => {
   setStore({
     [SETTING.LOCAL_URL]: "http://local:8123",

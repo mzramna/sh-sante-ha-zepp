@@ -29,7 +29,7 @@ export function entityPage({ domain, draw, pollMs = 0, ...rest }) {
       s.list = [];
       s.alive = true;
       s.timers = new Set();
-      s.pending = new Set(); // debounced controls still waiting to send
+      s.pending = new Map(); // key -> run(): debounced controls still waiting to send
       s.debounce = {};
       s.armed = {}; // confirm key -> timer id
       loading(s.list);
@@ -39,6 +39,8 @@ export function entityPage({ domain, draw, pollMs = 0, ...rest }) {
 
     onDestroy() {
       const s = this.state;
+      // Send the changes still waiting for their debounce while the page is alive: the reply then skips the UI.
+      for (const run of [...s.pending.values()]) run();
       s.alive = false;
       s.timers.forEach((t) => {
         clearTimeout(t);
@@ -117,11 +119,12 @@ export function entityPage({ domain, draw, pollMs = 0, ...rest }) {
         if (!s.alive) return;
         clearTimeout(s.debounce[key]);
         s.timers.delete(s.debounce[key]);
-        s.pending.add(key);
-        s.debounce[key] = this.later(ms, () => {
+        const run = () => {
           s.pending.delete(key);
           send(value);
-        });
+        };
+        s.pending.set(key, run);
+        s.debounce[key] = this.later(ms, run);
       };
     },
 

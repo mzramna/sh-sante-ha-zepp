@@ -123,9 +123,10 @@ test("CAMERA_SNAPSHOT routes to cameraSnapshot with the service as second argume
   assert.equal(service.sent[0].opts.name, out.file);
 });
 
-test("SYNC_SENSORS routes to syncSensors (sensor mode off is refused)", async () => {
-  const [[err]] = await request({ method: METHOD.SYNC_SENSORS, params: { payload: {} } });
-  assert.equal(err, "Sensor sync disabled");
+test("SYNC_SENSORS routes to syncSensors (sensor mode off answers disabled)", async () => {
+  const [[err, out]] = await request({ method: METHOD.SYNC_SENSORS, params: { payload: {} } });
+  assert.equal(err, null);
+  assert.deepEqual(out, { disabled: true });
 });
 
 test("SYNC_SENSORS with zepp2hass mode posts the payload and answers the interval", async () => {

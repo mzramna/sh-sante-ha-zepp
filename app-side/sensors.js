@@ -50,7 +50,8 @@ const SENDERS = new Map([
 
 export async function syncSensors({ payload }) {
   const send = SENDERS.get(get(SETTING.SENSOR_MODE));
-  if (!send) throw new Error("Sensor sync disabled");
+  // "none" or unset: not an error, the watch stops its background sync on this answer.
+  if (!send) return { disabled: true };
   try {
     if (!payload || typeof payload !== "object") throw new Error("No sensor payload");
     await send(payload);

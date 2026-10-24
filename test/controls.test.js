@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import {
-  COVER_FEATURE, VACUUM_FEATURE, supportsFeature, pickHvacModes, rowX, alarmPolicy, debounce, wait,
+  COVER_FEATURE, VACUUM_FEATURE, supportsFeature, pickHvacModes, rowX, alarmPolicy,
 } from "../utils/controls.js";
 
 test("cover feature bits", () => {
@@ -37,21 +37,4 @@ test("vacuum feature bits", () => {
   assert.equal(supportsFeature(features, VACUUM_FEATURE.PAUSE), true);
   assert.equal(supportsFeature(features, VACUUM_FEATURE.RETURN_HOME), false);
   assert.equal(supportsFeature(features, VACUUM_FEATURE.LOCATE), false);
-});
-
-test("debounce runs once with the last arguments", async () => {
-  const calls = [];
-  const d = debounce((v) => calls.push(v), 20);
-  d(1); d(2); d(3);
-  await wait(60);
-  assert.deepEqual(calls, [3]);
-});
-
-test("debounce cancel drops the pending call", async () => {
-  const calls = [];
-  const d = debounce((v) => calls.push(v), 20);
-  d(1);
-  d.cancel();
-  await wait(60);
-  assert.deepEqual(calls, []);
 });

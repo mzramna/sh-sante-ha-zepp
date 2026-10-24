@@ -51,7 +51,7 @@ test("service: blocked storage is survived; the run still sends and schedules", 
   localStorage.removeItem = boom;
   phone(async () => ({ interval: 5 }));
   const result = await service.onInit();
-  assert.deepEqual(result, { ok: true, interval: 5 });
+  assert.deepEqual([result.ok, result.interval], [true, 5]);
   assert.ok(state.alarms.size >= 1, "an alarm is still set");
   assert.equal(state.storage.size, 0, "nothing could be stored");
 });
@@ -102,7 +102,7 @@ test("service: a non-Error rejection is stored as text; notifications can be tur
   for (let i = 0; i < 3; i++) await service.onInit();
   assert.equal(JSON.parse(state.storage.get("last_sync")).error, "boom");
   assert.equal(state.notifications.length, 0, "no notification with the feature off");
-  assert.equal(state.storage.get("sync_failures"), 0, "the counter still resets");
+  assert.equal(state.storage.get("sync_failures"), 3, "the streak is still counted");
 });
 
 test("service: onDestroy has nothing to release", () => {

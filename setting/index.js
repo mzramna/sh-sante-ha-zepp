@@ -2,14 +2,13 @@
 // Everything is read from settingsStorage on each build; the side service does the HA work.
 import { gettext } from "i18n"
 import { SETTING } from "../shared/protocol.js"
+import { parseJson, readList } from "../shared/validate.js"
 import {
   SENSOR_MODES,
   SYNC_INTERVALS,
   isHttpUrl,
   normalizeNotifyService,
   normalizeStatusEntity,
-  parseJson,
-  readList,
   readEntities,
   visibleEntities,
   setEnabled,
@@ -18,6 +17,8 @@ import {
 } from "./logic.js"
 
 const FILTER_KEY = "filter" // entity search text, kept on the phone as in 1.x
+// field -> message for the last invalid value. In storage, not page state: a change rebuilds the page.
+const ERRORS_KEY = "settingsErrors"
 const MODE_LABELS = { none: "Off", zepp2hass: "zepp2hass", mobile_app: "Mobile app", rest: "REST API" }
 const RED = "#d32f2f"
 
@@ -51,14 +52,21 @@ function statusLine(store) {
   return [Text({ style: status.ok ? hintStyle : errorStyle }, String(status.message || ""))]
 }
 
+// Saves a checked value (null = invalid, the stored setting stays) and sets or clears the field's error.
+// The error is written last, so the one rebuild it triggers shows the final state.
+function saveChecked(store, field, key, value, message) {
+  if (value !== null) store.setItem(key, value)
+  const errors = parseJson(store.getItem(ERRORS_KEY), {})
+  if (value === null) errors[field] = message
+  else delete errors[field]
+  store.setItem(ERRORS_KEY, JSON.stringify(errors))
+}
+
 AppSettingsPage({
-  state: {
-    errors: {}, // field -> message, shown until the next valid value
-  },
   build(props) {
     const store = props.settingsStorage
     const get = (key) => store.getItem(key) || ""
-    const errors = this.state.errors
+    const errors = parseJson(get(ERRORS_KEY), {})
     const mode = get(SETTING.SENSOR_MODE) || "none"
 
     const saveEntities = (list) => store.setItem(SETTING.ENTITY_LIST, JSON.stringify(list))
@@ -101,9 +109,9 @@ AppSettingsPage({
       // Access to Home Assistant
       Heading("Access"),
       Hint("e.g. http://homeassistant.local:8123/"),
-      TextInput({ label: gettext("IPLocal"), value: get(SETTING.LOCAL_URL), subStyle: inputStyle, onChange: (raw) => store.setItem(SETTING.LOCAL_URL, raw) }),
+      TextInput({ label: gettext("IPLocal"), value: get(SETTING.LOCAL_URL), subStyle: inputStyle, onChange: (raw) => store.setItem(SETTING.LOCAL_URL, raw.trim()) }),
       Hint("e.g. https://example.com/"),
-      TextInput({ label: gettext("IPExternal"), value: get(SETTING.EXTERNAL_URL), subStyle: inputStyle, onChange: (raw) => store.setItem(SETTING.EXTERNAL_URL, raw) }),
+      TextInput({ label: gettext("IPExternal"), value: get(SETTING.EXTERNAL_URL), subStyle: inputStyle, onChange: (raw) => store.setItem(SETTING.EXTERNAL_URL, raw.trim()) }),
       Hint(gettext("FromProfile")),
       TextInput({ label: gettext("LongToken"), value: get(SETTING.TOKEN), subStyle: inputStyle, onChange: (raw) => store.setItem(SETTING.TOKEN, raw.trim()) }),
       Button({
@@ -148,12 +156,7 @@ AppSettingsPage({
               subStyle: inputStyle,
               onChange: (raw) => {
                 const url = raw.trim()
-                if (isHttpUrl(url)) {
-                  delete errors.zepp2hass
-                  store.setItem(SETTING.ZEPP2HASS_URL, url)
-                } else {
-                  errors.zepp2hass = gettext("Must start with http:// or https://")
-                }
+                saveChecked(store, "zepp2hass", SETTING.ZEPP2HASS_URL, isHttpUrl(url) ? url : null, gettext("Must start with http:// or https://"))
               },
             }),
             errors.zepp2hass && ErrorText(errors.zepp2hass),
@@ -167,7 +170,6 @@ AppSettingsPage({
               onClick: () => store.setItem(SETTING.REGISTER_REQUEST, String(Date.now())),
             }),
             Hint(parseJson(get(SETTING.MOBILE_APP), null) ? gettext("Registered in Home Assistant") : gettext("Not registered yet")),
-            ...statusLine(store),
           ]
         : []),
       Text({ style: lastOk || !last ? hintStyle : errorStyle }, lastText),
@@ -181,12 +183,7 @@ AppSettingsPage({
         subStyle: inputStyle,
         onChange: (raw) => {
           const service = normalizeNotifyService(raw)
-          if (service === null) {
-            errors.saaNotify = gettext("Letters, digits and _ only, e.g. mobile_app_pixel_8")
-          } else {
-            delete errors.saaNotify
-            store.setItem(SETTING.SAA_NOTIFY_SERVICE, service)
-          }
+          saveChecked(store, "saaNotify", SETTING.SAA_NOTIFY_SERVICE, service, gettext("Letters, digits and _ only, e.g. mobile_app_pixel_8"))
         },
       }),
       errors.saaNotify && ErrorText(errors.saaNotify),
@@ -196,12 +193,7 @@ AppSettingsPage({
         subStyle: inputStyle,
         onChange: (raw) => {
           const entity = normalizeStatusEntity(raw)
-          if (entity === null) {
-            errors.saaStatus = gettext("Entity id like sensor.sleep_as_android, or empty")
-          } else {
-            delete errors.saaStatus
-            store.setItem(SETTING.SAA_STATUS_ENTITY, entity)
-          }
+          saveChecked(store, "saaStatus", SETTING.SAA_STATUS_ENTITY, entity, gettext("Entity id like sensor.sleep_as_android, or empty"))
         },
       }),
       errors.saaStatus && ErrorText(errors.saaStatus),

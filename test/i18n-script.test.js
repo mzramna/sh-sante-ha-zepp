@@ -1,7 +1,12 @@
 // scripts/i18n.js: merging the i18n-src files and writing gettext .po text.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { mergeSources, toPo, languagesOf } from "../scripts/i18n.js";
+
+const SRC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../i18n-src");
 
 test("mergeSources joins files with different keys", () => {
   const merged = mergeSources(
@@ -74,4 +79,15 @@ test("toPo leaves out a key with no text at all, and writes nothing for no keys"
 test("languagesOf always lists the three core languages and any other one translated", () => {
   assert.deepEqual(languagesOf({ a: { "en-US": "A" } }), ["en-US", "pt-BR", "es-ES"]);
   assert.deepEqual(languagesOf({ a: { "en-US": "A", "fr-FR": "A" } }), ["en-US", "pt-BR", "es-ES", "fr-FR"]);
+});
+
+test("the real i18n-src files merge without a conflicting duplicate key", () => {
+  const sources = fs
+    .readdirSync(SRC_DIR)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .map((file) => ({ file, data: JSON.parse(fs.readFileSync(path.join(SRC_DIR, file), "utf8")) }));
+  const warnings = [];
+  mergeSources(sources, (msg) => warnings.push(msg));
+  assert.deepEqual(warnings, []);
 });

@@ -131,7 +131,3 @@ export async function updateSensors(payload) {
   }
   return result;
 }
-
-export function fireEvent(event_type, event_data) {
-  return webhook("fire_event", { event_type, event_data });
-}

@@ -23,10 +23,13 @@ Page(
       this.load();
     },
     load() {
-      return Promise.all([
-        this.request({ method: METHOD.GET_CONFIG, params: {} }),
-        this.request({ method: METHOD.GET_ENTITIES, params: {} }),
-      ])
+      // Favourites are fetched by id, so they need not be enabled entities; no ids, no entity request.
+      return this.request({ method: METHOD.GET_CONFIG, params: {} })
+        .then((config) => {
+          const ids = config.favorites || [];
+          const entities = ids.length ? this.request({ method: METHOD.GET_ENTITIES, params: { ids } }) : [];
+          return Promise.all([config, entities]);
+        })
         .then(([config, entities]) => {
           if (!this.state.alive) return;
           clear(this.state.widgets);

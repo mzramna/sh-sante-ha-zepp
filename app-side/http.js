@@ -15,9 +15,10 @@ let lastGood = null;
 
 // Base URLs in try order: the last one that answered, then local, then external.
 export function baseUrls() {
-  const urls = [get(SETTING.LOCAL_URL), get(SETTING.EXTERNAL_URL)].filter(
-    (u) => typeof u === "string" && u.trim() !== ""
-  );
+  // Trimmed here too: installs may already hold an address saved with a stray space.
+  const urls = [get(SETTING.LOCAL_URL), get(SETTING.EXTERNAL_URL)]
+    .filter((u) => typeof u === "string" && u.trim() !== "")
+    .map((u) => u.trim());
   return urls.includes(lastGood) ? [lastGood, ...urls.filter((u) => u !== lastGood)] : urls;
 }
 

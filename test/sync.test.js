@@ -1,6 +1,6 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { state, reset, respond, load, open, texts, findText, click } from "./helpers/watch.js";
+import { state, reset, respond, load, open, texts, findText, click, flush } from "./helpers/watch.js";
 import { collectReadings } from "../app-service/collect.js";
 import { nextDelaySeconds } from "../app-service/sync.js";
 import { FEATURES } from "../config/build.js";
@@ -89,7 +89,7 @@ test("service failure retries in 300 seconds and records the error", async () =>
   assert.deepEqual([last.ok, last.error], [false, "no phone"]);
 });
 
-test("third failure in a row notifies once and resets the counter", async () => {
+test("third failure in a row notifies once; later failures in the same streak do not notify again", async () => {
   const svc = await load("app-service/sync.js", "service");
   let fail = true;
   phone(async () => {
@@ -102,11 +102,34 @@ test("third failure in a row notifies once and resets the counter", async () => 
   await svc.onInit();
   assert.equal(state.notifications.length, 1);
   assert.equal(state.notifications[0].title, "sync_failing_title");
-  assert.equal(state.storage.get("sync_failures"), 0);
+  assert.equal(state.storage.get("sync_failures"), 3);
+
+  // The retry every 5 minutes must not re-notify while the streak lasts.
+  await svc.onInit();
+  await svc.onInit();
+  assert.equal(state.notifications.length, 1);
 
   fail = false;
   await svc.onInit();
   assert.equal(state.notifications.length, 1);
+  assert.equal(state.storage.get("sync_failures"), 0);
+});
+
+test("a phone with no sensor mode stops the background sync: the alarm is cancelled and not renewed", async () => {
+  const svc = await load("app-service/sync.js", "service");
+  let answer = { interval: 5 };
+  phone(async () => answer);
+  await svc.onInit();
+  assert.equal(state.alarms.size, 1);
+  const lastBefore = state.storage.get("last_sync");
+
+  answer = { disabled: true };
+  const result = await svc.onInit();
+  assert.equal(result.disabled, true);
+  assert.equal(state.alarms.size, 0, "no retry or next run is set");
+  assert.equal(state.storage.has("sync_alarm_id"), false);
+  assert.equal(state.storage.get("last_sync"), lastBefore, "not recorded as a failure");
+  assert.equal(state.notifications.length, 0);
 });
 
 test("a success in between resets the failure count", async () => {
@@ -163,7 +186,7 @@ test("start sets an alarm for the service, stop cancels it", async () => {
   assert.equal(state.alarms.size, 1);
   const [[id, alarm]] = [...state.alarms];
   assert.deepEqual([alarm.url, alarm.delay], ["app-service/sync", 10]);
-  assert.equal(state.storage.get("sync_alarm_id"), String(id));
+  assert.equal(state.storage.get("sync_alarm_id"), id);
   assert.ok(findText("sync_stop"));
 
   await click(findText("sync_stop"));
@@ -181,4 +204,18 @@ test("start replaces an alarm that was already set", async () => {
   await click(findText("sync_start"));
   assert.equal(state.alarms.size, 1);
   assert.notEqual([...state.alarms.keys()][0], firstId);
+});
+
+test("page: a sync reply that arrives after the page was left toasts and draws nothing", async () => {
+  reset();
+  let release;
+  respond({ GET_CONFIG: { sensorMode: "rest" }, SYNC_SENSORS: () => new Promise((r) => (release = r)) });
+  const page = await open("page/sync/index.js");
+  const done = page.syncNow();
+  await flush(); // the request is out, its reply pending
+  page.onDestroy();
+  release({ interval: 5 });
+  await done;
+  assert.deepEqual(state.toasts, []);
+  assert.equal(state.widgets.length, 0, "nothing drawn after destroy");
 });

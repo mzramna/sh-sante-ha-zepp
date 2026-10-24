@@ -62,6 +62,21 @@ test("home lists favourites in the configured order and skips ids that are gone"
   assert.deepEqual(state.requests.map((r) => r.method), ["GET_CONFIG", "GET_ENTITIES"]);
 });
 
+test("home asks for the config first, then only the favourites by their ids", async () => {
+  setup({ GET_CONFIG: { favorites: ["switch.s", "light.a"], sensorMode: "none" } });
+  await open("page/home/index.js");
+  assert.deepEqual(state.requests, [
+    { method: "GET_CONFIG", params: {} },
+    { method: "GET_ENTITIES", params: { ids: ["switch.s", "light.a"] } },
+  ]);
+});
+
+test("home with no favourites asks the phone for the config and nothing else", async () => {
+  setup({ GET_CONFIG: { favorites: [], sensorMode: "none" } });
+  await open("page/home/index.js");
+  assert.deepEqual(state.requests, [{ method: "GET_CONFIG", params: {} }]);
+});
+
 test("home without favourites draws only the categories", async () => {
   setup({ GET_CONFIG: { favorites: ["gone.x"], sensorMode: "none" } });
   await hasFeature("appService", false, () => open("page/home/index.js"));
@@ -181,8 +196,8 @@ test("a failed home load shows the error in danger colour and draws no categorie
   assert.ok(!texts().includes("Devices"));
 });
 
-test("a failed entity list also shows the error", async () => {
-  setup({ GET_ENTITIES: new Error("timeout") });
+test("a failed favourites request also shows the error", async () => {
+  setup({ GET_CONFIG: { favorites: ["light.a"], sensorMode: "none" }, GET_ENTITIES: new Error("timeout") });
   await open("page/home/index.js");
   expectErrorShown("timeout");
 });

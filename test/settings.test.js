@@ -6,6 +6,9 @@ import { installSettings } from "./helpers/phone.js";
 import { SETTING } from "../shared/protocol.js";
 import * as logic from "../setting/logic.js";
 
+const ERRORS_KEY = "settingsErrors";
+const errorsIn = (store) => JSON.parse(store.get(ERRORS_KEY) || "{}");
+
 const RED = "#d32f2f";
 const ENTITIES = [
   { key: "light.a", title: "A", value: true },
@@ -59,10 +62,10 @@ async function open(initial = {}) {
 
 beforeEach(() => installComponents());
 
-test("connection: URLs stored as typed, token trimmed", async () => {
+test("connection: URLs and token saved trimmed, so a stray space cannot break requests", async () => {
   let tree = await open();
-  one(tree, "TextInput", "IPLocal").props.onChange("http://ha.local:8123");
-  one(tree, "TextInput", "IPExternal").props.onChange("https://ha.example.com");
+  one(tree, "TextInput", "IPLocal").props.onChange("  http://ha.local:8123 ");
+  one(tree, "TextInput", "IPExternal").props.onChange("https://ha.example.com  ");
   one(tree, "TextInput", "LongToken").props.onChange("  tok  ");
   assert.equal(store.get(SETTING.LOCAL_URL), "http://ha.local:8123");
   assert.equal(store.get(SETTING.EXTERNAL_URL), "https://ha.example.com");
@@ -207,6 +210,41 @@ test("zepp2hass: URL must start with http:// or https://", async () => {
   assert.equal(texts(build()).includes(err), false);
 });
 
+test("an invalid value is recorded in settingsErrors and the page shows it from that key", async () => {
+  await open({ [SETTING.SENSOR_MODE]: "zepp2hass", [SETTING.ZEPP2HASS_URL]: "https://old/hook" });
+  one(build(), "TextInput", "zepp2hass webhook URL").props.onChange("nope");
+  assert.deepEqual(errorsIn(store), { zepp2hass: "Must start with http:// or https://" });
+  assert.equal(store.get(SETTING.ZEPP2HASS_URL), "https://old/hook", "the last valid value stays");
+
+  // A new page instance has no memory of the change: the error comes from storage alone.
+  const fresh = await open({ [SETTING.SENSOR_MODE]: "zepp2hass", [ERRORS_KEY]: store.get(ERRORS_KEY) });
+  assert.ok(texts(fresh).includes("Must start with http:// or https://"));
+});
+
+test("a valid save clears only its own field's error", async () => {
+  await open({
+    [SETTING.SENSOR_MODE]: "zepp2hass",
+    [SETTING.SAA_NOTIFY_SERVICE]: "mobile_app_old",
+    [ERRORS_KEY]: JSON.stringify({ zepp2hass: "bad url", saaNotify: "bad name" }),
+  });
+  one(build(), "TextInput", "zepp2hass webhook URL").props.onChange("https://z.example/hook");
+  assert.deepEqual(errorsIn(store), { saaNotify: "bad name" });
+  assert.equal(texts(build()).includes("bad name"), true, "other fields keep their error");
+});
+
+test("Sleep as Android errors go to settingsErrors and clear when fixed", async () => {
+  await open();
+  one(build(), "TextInput", "Notify service").props.onChange("Bad Name");
+  one(build(), "TextInput", "Status entity").props.onChange("sleep");
+  assert.deepEqual(errorsIn(store), {
+    saaNotify: "Letters, digits and _ only, e.g. mobile_app_pixel_8",
+    saaStatus: "Entity id like sensor.sleep_as_android, or empty",
+  });
+  one(build(), "TextInput", "Notify service").props.onChange("mobile_app_pixel_8");
+  one(build(), "TextInput", "Status entity").props.onChange("sensor.sleep_as_android");
+  assert.deepEqual(errorsIn(store), {});
+});
+
 test("mobile_app: register button and registration state", async () => {
   let tree = await open({ [SETTING.SENSOR_MODE]: "mobile_app" });
   assert.ok(texts(tree).includes("Not registered yet"));
@@ -221,13 +259,15 @@ test("mobile_app: register button and registration state", async () => {
   assert.ok(texts(tree).includes("Registered in Home Assistant"));
 });
 
-test("mobile_app: register result shows under the button", async () => {
+test("the status line is shown once, also in mobile_app mode, red when the register failed", async () => {
+  const message = "Unexpected response from Home Assistant";
   const tree = await open({
     [SETTING.SENSOR_MODE]: "mobile_app",
-    [SETTING.STATUS]: JSON.stringify({ ok: false, message: "Unexpected response from Home Assistant", time: 1 }),
+    [SETTING.STATUS]: JSON.stringify({ ok: false, message, time: 1 }),
   });
-  const node = nodes(tree).find((n) => n.children === "Unexpected response from Home Assistant");
-  assert.equal(node.props.style.color, RED);
+  const lines = nodes(tree).filter((n) => n.children === message);
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].props.style.color, RED);
 });
 
 test("last sync: none, ok, and failed", async () => {
@@ -306,13 +346,7 @@ test("normalizeStatusEntity accepts entity ids and empty, rejects the rest", () 
   assert.equal(logic.normalizeStatusEntity("Sensor.X"), null);
 });
 
-test("parseJson, readList and readEntities tolerate bad input", () => {
-  assert.deepEqual(logic.parseJson("[1]", null), [1]);
-  assert.equal(logic.parseJson("nope", "fallback"), "fallback");
-  assert.equal(logic.parseJson("null", "fallback"), "fallback");
-  assert.equal(logic.parseJson(undefined, 7), 7);
-  assert.deepEqual(logic.readList('{"a":1}'), []);
-  assert.deepEqual(logic.readList(""), []);
+test("readEntities keeps only entries with a key, tolerating bad input", () => {
   assert.deepEqual(logic.readEntities(JSON.stringify([null, { key: 1 }, { key: "light.a", title: "A", value: true }])), [
     { key: "light.a", title: "A", value: true },
   ]);

@@ -7,6 +7,7 @@ import { SETTING } from "../shared/protocol.js";
 import * as ha from "../app-side/ha.js";
 import { joinUrl, baseUrls, request, haRequest, HttpError } from "../app-side/http.js";
 import * as mobileApp from "../app-side/mobile-app.js";
+import { BaseSideService } from "@zeppos/zml/base-side";
 import { syncSensors } from "../app-side/sensors.js";
 import { snapshotUrl, cameraSnapshot } from "../app-side/camera.js";
 import { buildPayload, getPath, SENSOR_DEFS } from "../shared/zepp2hass.js";
@@ -228,6 +229,12 @@ test("baseUrls drops blank, missing and non-string addresses", () => {
   assert.deepEqual(baseUrls(), []);
 });
 
+test("baseUrls trims addresses saved with stray spaces", () => {
+  store[SETTING.LOCAL_URL] = " https://local ";
+  store[SETTING.EXTERNAL_URL] = "https://ext  ";
+  assert.deepEqual(baseUrls(), ["https://local", "https://ext"]);
+});
+
 test("request answers status 0 and a missing response as no response", async () => {
   installFetch([[() => true, { status: 0, body: "" }]]);
   await assert.rejects(request("https://x/a"), /No response from https:\/\/x\/a/);
@@ -383,9 +390,9 @@ test("register without a webhook id fails and stores nothing", async () => {
 test("webhook uses the remote UI address when there is no cloud hook", async () => {
   store[SETTING.MOBILE_APP] = JSON.stringify({ webhook_id: "wh", remote_ui_url: "https://ui/" });
   const calls = installFetch([[() => true, json(200, {})]]);
-  await mobileApp.fireEvent("ping", { a: 1 });
+  await mobileApp.webhook("update_sensor_states", []);
   assert.equal(calls[0].url, "https://ui/api/webhook/wh");
-  assert.deepEqual(JSON.parse(calls[0].body), { type: "fire_event", data: { event_type: "ping", event_data: { a: 1 } } });
+  assert.deepEqual(JSON.parse(calls[0].body), { type: "update_sensor_states", data: [] });
 });
 
 test("webhook with no address at all says so", async () => {
@@ -635,4 +642,16 @@ test("SENSOR_DEFS have unique ids and known types", () => {
   const ids = SENSOR_DEFS.map((d) => d.unique_id);
   assert.equal(new Set(ids).size, ids.length);
   assert.ok(SENSOR_DEFS.every((d) => d.type === "sensor" || d.type === "binary_sensor"));
+});
+
+// ---- zml base-side mock (test/mocks/zml/base-side.js) ----
+
+test("the ZML side mock: download returns a task that reports to onSuccess, convert resolves", async () => {
+  const service = BaseSideService({});
+  const task = service.download("https://h/cam", { filePath: "camera_1.png" });
+  const got = await new Promise((resolve) => {
+    task.onSuccess = resolve;
+  });
+  assert.deepEqual(got, { filePath: "camera_1.png", statusCode: 200 });
+  assert.deepEqual(await service.convert({ filePath: "x" }), {});
 });

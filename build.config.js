@@ -15,7 +15,6 @@ const MODERN_PERMISSIONS = [
   "data:user.hd.sleep",
   "data:user.hd.spo2",
   "data:user.hd.stress",
-  "data:user.hd.workout",
   "data:user.hd.body_temp",
   "data:user.hd.step",
   "data:user.hd.calorie",

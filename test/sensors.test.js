@@ -94,9 +94,12 @@ test("syncSensors records a failure in lastSync and rethrows", async () => {
   assert.match(last.error, /HTTP 500/);
 });
 
-test("syncSensors refuses when sync is disabled", async () => {
+test("syncSensors answers disabled, without an error, when the mode is none or unset", async () => {
   store.sensorMode = "none";
-  await assert.rejects(syncSensors({ payload: {} }), /Sensor sync disabled/);
+  assert.deepEqual(await syncSensors({ payload: {} }), { disabled: true });
+  delete store.sensorMode;
+  assert.deepEqual(await syncSensors({ payload: {} }), { disabled: true });
+  assert.equal(store.lastSync, undefined, "no status is written for a disabled sync");
 });
 
 test("webhook tries cloudhook, remote UI, then LAN and external URLs in order", async () => {
