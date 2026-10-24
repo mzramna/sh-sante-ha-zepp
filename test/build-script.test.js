@@ -515,3 +515,11 @@ test("verifyStage reports a missing app icon once, without reading it", () => {
   fs.rmSync(path.join(dir, "assets/common.r/icon.png"));
   assert.deepEqual(build.verifyStage(dir), ["missing assets/common.r/icon.png (app icon of target common)"]);
 });
+
+test("--list prints the API profiles as JSON for the CI build matrix, without staging", () => {
+  const { logs, execCalls, exitCode } = runCli(["--list"]);
+  assert.equal(exitCode, null);
+  assert.equal(execCalls.length, 0);
+  assert.deepEqual(JSON.parse(logs[0]), Object.keys(config.profiles));
+  assert.equal(logs.length, 1);
+});

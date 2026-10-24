@@ -19,6 +19,8 @@ jobs:
   verify:
     name: verify
     runs-on: ubuntu-24.04
+    outputs:
+      apis: ${{ steps.profiles.outputs.apis }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,6 +52,11 @@ jobs:
       - name: Pre-compilation check (all API profiles)
         run: npm run verify
 
+      # One precompile job per API profile in build.config.js (a new profile gets its own build).
+      - name: API profiles
+        id: profiles
+        run: echo "apis=$(node scripts/build.js --list)" >> "$GITHUB_OUTPUT"
+
   precompile:
     name: precompile (API ${{ matrix.api }})
     needs: verify
@@ -57,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api: ["1.0", "3.6", "4.0"]
+        api: ${{ fromJSON(needs.verify.outputs.apis) }}
     steps:
       - uses: actions/checkout@v4
 

@@ -103,7 +103,9 @@ npm run verify         # preliminary pre-compilation: stage every API profile an
 ### Pull request checks
 Every pull request runs `.github/workflows/pr.yml`:
 - **verify**: tests with coverage thresholds, type check, translations in sync with `i18n-src`, and `npm run verify` (each API profile is staged and every page, service, icon and translation `app.json` points to must exist).
-- **precompile (API 1.0 / 3.6 / 4.0)**: the real `zeus build` per profile; the `.zab` files are attached to the run as artifacts for testing on a watch.
+- **precompile (API 1.0 / 3.6 / 4.0)**: one real `zeus build` job per API profile (the list comes from `build.config.js` via `node scripts/build.js --list`, so a new profile gets its own build automatically); the `.zab` files are attached to the run as artifacts for testing on a watch.
+
+Pushes to `main` run the same per-profile builds (`.github/workflows/main.yml`) and publish every `.zab` in the `latest` prerelease.
 
 To block merging until they pass, add `verify` and the three `precompile (API …)` checks as **required status checks** in *Settings → Branches → branch protection rule for `main`* (or a ruleset with "Require status checks to pass").
 

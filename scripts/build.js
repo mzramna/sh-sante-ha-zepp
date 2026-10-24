@@ -3,6 +3,7 @@
 //
 //   node scripts/build.js [--api <level>|all] [--debug] [--shape r,s]
 //                         [--feature name=true|false]... [--dry-run] [--verify]
+//   node scripts/build.js --list    (JSON array of the API profiles, used by CI)
 //
 // Env: ZEPP_API is used when --api is not given. Each profile is staged in
 // build/api-<level>/ (tree copy + generated app.json and config/build.js, with
@@ -38,6 +39,7 @@ function parseArgs(argv) {
     else if (a === "--debug") args.debug = true;
     else if (a === "--dry-run") args.dryRun = true;
     else if (a === "--verify") args.verify = args.dryRun = true;
+    else if (a === "--list") args.list = true;
     else if (a === "--shape") {
       args.shape = value().split(",");
       const bad = args.shape.filter((s) => !SHAPES[s]);
@@ -203,6 +205,8 @@ function zeusBuild(dir, level) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  // CI builds one job per profile from this list, so a new profile gets its own build.
+  if (args.list) return console.log(JSON.stringify(Object.keys(config.profiles)));
   const levels = args.api === "all" ? Object.keys(config.profiles) : [args.api];
   for (const level of levels) {
     const { dir, report } = stage(level, args);

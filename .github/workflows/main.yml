@@ -1,6 +1,7 @@
 name: CI
 
-# Builds and publishes the prerelease from main. Pull requests are checked by pr.yml.
+# Builds and publishes the prerelease from main: one build job per API profile in
+# build.config.js, then one release with every .zab. Pull requests are checked by pr.yml.
 on:
   push:
     branches:
@@ -10,10 +11,10 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write # only used by the release steps on main
+    outputs:
+      apis: ${{ steps.profiles.outputs.apis }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,28 +33,66 @@ jobs:
 
       - run: npm run test:coverage
       - run: npm run check
+      - run: npm run verify
 
-      # zeus needs network access to Zepp's servers to fetch the device list,
-      # so this step fails if the runner cannot reach them.
+      - name: API profiles
+        id: profiles
+        run: echo "apis=$(node scripts/build.js --list)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build (API ${{ matrix.api }})
+    needs: verify
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        api: ${{ fromJSON(needs.verify.outputs.apis) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+
+      - run: npm install
+
       # zeus-cli breaks as a project dependency (module-alias), so it is installed globally.
+      # zeus downloads the device list from Zepp's servers.
       - run: npm install -g @zeppos/zeus-cli@1.9.3
-      - run: node scripts/build.js --api all
+      - run: node scripts/build.js --api ${{ matrix.api }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ha-zepp-zab
-          path: dist/*.zab
+          name: ha-zepp-api${{ matrix.api }}
+          path: dist/ha-zepp-api${{ matrix.api }}.zab
           if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ha-zepp-api*
+          path: dist
+          merge-multiple: true
 
       # softprops only creates the release; it does not move an existing tag, so move `latest` first.
       - name: Move latest tag to this commit
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           git tag -f latest "$GITHUB_SHA"
           git push -f origin latest
 
       - name: Publish prerelease
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
