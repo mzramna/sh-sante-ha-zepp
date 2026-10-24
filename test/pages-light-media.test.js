@@ -441,3 +441,26 @@ test("bug: an entity reply that arrives after onDestroy still draws the page", {
   await flush();
   assert.equal(findText("Living TV"), undefined);
 });
+
+// ---------- defaults for missing attributes ----------
+
+test("light: no active effect shows the effect label, and no colour modes means no ring", async () => {
+  reset();
+  await lightPage({ ...LIGHT, attributes: { effect_list: ["rainbow"] } });
+  assert.ok(button("effect"));
+  assert.equal(findText("%"), undefined);
+});
+
+test("light: a missing brightness reads as 0%", async () => {
+  reset();
+  await lightPage({ ...LIGHT, attributes: { supported_color_modes: ["brightness"] } });
+  assert.ok(findText("0%"));
+});
+
+test("media: missing track info and feature bits draw empty lines and no buttons", async () => {
+  reset();
+  await playerPage({ ...PLAYER, attributes: {} });
+  assert.deepEqual(buttons(), []);
+  assert.equal(texts().filter((t) => t === "").length, 2, "empty title and artist lines");
+  assert.equal(findText("%"), undefined);
+});
