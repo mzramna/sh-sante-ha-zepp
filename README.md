@@ -1,46 +1,121 @@
 # Home Assistant companion for Zepp OS devices
-This application allows you to control your Home Assistant devices from your Zepp Watch, and it is based on this [application developed by ga2mer](https://github.com/ga2mer/ha-zepp) (<b>thanks for that!</b> 🥰).
+
+Control your Home Assistant devices from your Zepp OS watch and send health data back to Home Assistant. Based on [ga2mer's ha-zepp](https://github.com/ga2mer/ha-zepp) (<b>thanks for that!</b> 🥰). The modern app targets Zepp OS API 3.6+; the original 1.0 app is kept in `legacy/`.
 
 <img src="images/img1.jpg" width="300" height="300"> <img src="images/img2.jpg" width="300" height="300">
 
-### ⌚ Supported devices
-- Xiaomi Band 7
-- Amazfit Band 7
-- Amazfit GTR Mini
-- Amazfit GTR 3 
-- Amazfit GTR 3 Pro
-- Amazfit GTS 4 Mini
-- Amazfit GTR 4
-- Amazfit Cheetah Pro
-- Amazfit Active
-- Amazfit Balance
-- Amazfit T-REX 2
+## 🎨 Features
+- Control entities: lights (brightness when supported, effects), switches, fans, climate, covers, locks, vacuums, media players, alarm panels.
+- Run scenes, scripts, automations and buttons.
+- Show sensor values on the watch.
+- Favorites and areas.
+- Send health data to Home Assistant with [zepp2hass](https://github.com/davidepalleschi/zepp2hass) (install via HACS), the `mobile_app` integration (the watch is registered as a device with persistent sensors), or legacy REST states.
+- LAN-first URL failover: the local URL is tried first, then the external one.
+- Camera snapshots: experimental, off by default (`--feature camera=true`).
+- Sleep as Android: start/stop sleep tracking from the watch through Home Assistant (see below).
+- Background health sync every N minutes without waking the screen (app service + alarm).
 
-We are making changes in order to suppport more Zepp devices, if you have one ask for it in our [telegram community](https://t.me/aguacatec_es) 💬 On the other hand, if you are considering to buy one, [check this out!](https://s.click.aliexpress.com/e/_DdSQKvj) 💸
+## ⌚ Which build to install
 
-### 🎨 Features
-- See your entities in 3 categories (devices, scripts and sensors)
-- Control your devices (toggle switch, toggle light and see its effect if presented, change its brightness if possible, control media entities with play/pause, prev/next, volume control)
-- Run your scripts and automations
-- Show sensors data in your device
-- Multiple languages ​​supported: English, Spanish, Catalan, Italian, French, Portuguese, Russian, Chinese and Japanese
+| API profile | Build file | Watches |
+|---|---|---|
+| 4.0 and 3.6 | `dist/ha-zepp-api4.0.zab`, `dist/ha-zepp-api3.6.zab` | Round Zepp OS watches with API level 3.6 or newer. Examples (untested): Amazfit Balance, Balance 2, Active 2, Cheetah, T-Rex 3 |
+| 1.0 | `dist/ha-zepp-api1.0.zab` (from `legacy/`) | Legacy Zepp OS 1.0 watches: Xiaomi/Amazfit Band 7, GTR 3, GTR 3 Pro, GTR mini, GTR 4, GTS 4 mini, Cheetah Pro, Active, Balance, T-Rex 2 |
 
-### 📦 Installation guide
-#### ⚠️ If you have a Xiaomi Band 7!!
-You need to do some steps before, in order to connect it to the official Zepp App. I highly recommend you to follow [this guide](https://aguacatec.es/instalar-ha-en-la-xiaomi-band-7/).
-In short, you need to modify the QR code of the bracelet to be able to link it with the application. In the aforementioned guide I show you how to do it easily.
+Some models appear in both lists. Install the 3.6/4.0 build if the watch's API level is 3.6 or newer; otherwise use 1.0.
 
-#### 🪄 General steps
-Again, i highly recommend you to follow [this guide](https://aguacatec.es/instalar-ha-en-tu-reloj-zepp/), since all the steps are more detailed and it is more difficult to get lost! Anyway, if you are an advanced user, just follow this steps:
-- Download and install the official Zepp App for [Android](https://play.google.com/store/apps/details?id=com.huami.watch.hmwatchmanager) or [iOS](https://apps.apple.com/es/app/zepp-formerly-amazfit/id1127269366).
-- Enable [Developer Mode](https://docs.zepp.com/docs/1.0/guides/tools/zepp-app/) in Zepp App. 
-- Build and install the ha-zepp application yourself using the [Zeus CLI](https://docs.zepp.com/docs/1.0/guides/tools/cli/) or the [installer developed by Barny](https://aguacatec.es/wp-content/uploads/2024/03/HA-ZeppOS-instaleitor.zip).
-- Open the application settings and specify the addresses of Home Assistant, Long-lived access token and select the entities you want to display on Zepp OS device
+**None of the modern builds has been tested on hardware yet.**
 
-#### 🛟 Need help?
+Xiaomi Band 7 needs a QR-code change before it links to the Zepp App; follow [this guide](https://aguacatec.es/instalar-ha-en-la-xiaomi-band-7/).
+
+## 🛠 Building
+
+```sh
+npm install
+npm run build -- --api 4.0     # one profile
+ZEPP_API=3.6 npm run build     # same, selected by environment variable
+npm run build:all              # 1.0, 3.6 and 4.0
+```
+
+Output goes to `dist/ha-zepp-api<level>.zab`. Flags:
+
+| Flag | Effect |
+|---|---|
+| `--api <level>\|all` | Profile to build (default `4.0`, or `ZEPP_API`) |
+| `--debug` | Sets `debug` in the generated app.json |
+| `--shape r,s` | Target screen shapes: `r` (480 px round), `s` (390 px) |
+| `--feature name=true\|false` | Override a feature flag (modern builds only) |
+| `--dry-run` | Stage the build without running `zeus build` |
+
+How profiles work:
+- `build.config.js` defines one profile per API level: platforms, permissions and feature flags.
+- Each build is staged in `build/api-<level>/`, with a generated `app.json` (from `app.template.json`) and `config/build.js` exporting `API_LEVEL` and `FEATURES`.
+- `foo.api-X.Y.js` replaces `foo.js` in the staged tree when the selected level is at least X.Y. The highest matching variant wins. The source tree is not changed.
+
+To add an API level, add one block to `build.config.js`:
+
+```js
+"4.5": { apiVersion: { compatible: "4.5", target: "4.5", minVersion: "4.5" }, ...MODERN },
+```
+
+Add `*.api-4.5.js` variants only for modules that change. CI builds `--api all`, so the new profile is picked up automatically.
+
+## 📦 Setup
+
+1. Install the official Zepp App for [Android](https://play.google.com/store/apps/details?id=com.huami.watch.hmwatchmanager) or [iOS](https://apps.apple.com/es/app/zepp-formerly-amazfit/id1127269366), and enable [Developer Mode](https://docs.zepp.com/docs/1.0/guides/tools/zepp-app/).
+2. Install the `.zab` on the watch with the [Zeus CLI](https://docs.zepp.com/docs/1.0/guides/tools/cli/) or the [installer by Barny](https://aguacatec.es/wp-content/uploads/2024/03/HA-ZeppOS-instaleitor.zip).
+3. Open the app's settings in the Zepp App:
+   - **Local URL** (for example `http://homeassistant.local:8123`) and optional **external URL**.
+   - **Long-lived access token** from your Home Assistant profile.
+   - Press **Refresh entities**, then select the entities and favorites to show.
+   - **Sensor sync mode**: `none`, `zepp2hass`, `mobile_app` or `rest`.
+   - For zepp2hass: the **webhook URL**. For mobile_app: press **Register in Home Assistant**.
+   - **Sync interval** in minutes.
+
+### 😴 Sleep as Android
+The Zepp phone side cannot send Android intents, so the watch goes through Home Assistant and the [HA Companion app](https://companion.home-assistant.io/docs/notifications/notification-commands/) on the phone that runs Sleep as Android:
+1. In the settings page, set **Sleep as Android notify service** to the Companion notify service of that phone, e.g. `mobile_app_pixel_8` (a `notify.` prefix is removed).
+2. Optionally set a **status entity** that reflects Sleep as Android (e.g. an `input_boolean` you switch from the [`sleep_as_android` integration](https://www.home-assistant.io/integrations/sleep_as_android/) events).
+3. The watch's **Sleep as Android** page sends `command_broadcast_intent` with `com.urbandroid.sleep.alarmclock.START_SLEEP_TRACK` / `STOP_SLEEP_TRACK`.
+
+Not supported: snooze/dismiss (intent names unconfirmed) and using the watch as Sleep as Android's motion/heart-rate sensor (that needs an Android bridge such as Gadgetbridge or Notify for Amazfit, which already exist).
+
+A step-by-step guide in Spanish: [general steps](https://aguacatec.es/instalar-ha-en-tu-reloj-zepp/).
+
+## ⚠️ Limitations
+- No direct integration with the Android Home Assistant Companion app. The Zepp phone side runs sandboxed JavaScript.
+- Home Assistant to watch updates are polled while the app is open. Home Assistant notifications reach the watch through Zepp's phone-notification mirroring, for example `notify.mobile_app_<phone>`.
+- Modern builds need API level 3.6 or newer.
+- Camera snapshots are experimental.
+- Modern builds are not yet tested on hardware.
+
+## 🧪 Development
+```sh
+npm install
+npm test               # node:test suite: watch pages, phone side, app service, settings, build script
+npm run test:coverage  # same, with per-file coverage and minimum thresholds
+npm run check          # tsc type check against @zeppos/device-types and ZML typings
+npm run i18n           # regenerate page/i18n/*.po from i18n-src/*.json
+```
+
+Tests run the real watch and phone code in Node: `test/helpers/setup.js` maps every `@zos/*` and `@zeppos/zml/*` import to small mocks in `test/mocks/` and provides the runtime globals (`Page`, `AppService`, `AppSideService`, `settings`, `fetch`). See `test/helpers/watch.js` and `test/helpers/phone.js`.
+
+Project layout:
+- `app-side/`: phone side (HTTP to Home Assistant, LAN-first failover, sensor sync, mobile_app registration).
+- `app-service/`: background sensor sync on the watch.
+- `page/`: watch pages (home, entities, areas, one page per domain, sync).
+- `utils/`: shared watch UI and theme tokens.
+- `shared/`: watch-to-phone protocol, used by both sides.
+- `setting/`: Zepp App settings page and translations.
+- `legacy/`: the original Zepp OS 1.0 app. No new features; bug fixes only (reverse-proxy base path, implicit globals, side requests that never answered on HTTP errors).
+- `scripts/`: build, i18n and icon generator scripts.
+- `test/`: automated tests and the Zepp OS/ZML mocks.
+- `docs/`: notes.
+
+## 🆘 Need help?
 No problem! We can help you out to make it work! Just get into our [Telegram community](https://t.me/aguacatec_es) and ask for help. We have a topic dedicated to the application, and a room where we speak English 🌍
 
-### ♥️ Support us!
+## ♥️ Support us!
 We keep working to improve the interface, to add funtionalities and to make it compatible with more Zepp devices. If you want to support us you can do it by:
 
 💬 Join our [Telegram community](https://t.me/aguacatec_es)
