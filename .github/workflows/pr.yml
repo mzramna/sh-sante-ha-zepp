@@ -72,6 +72,9 @@ jobs:
 
       - run: npm install
 
+      # zeus-cli breaks as a project dependency (module-alias), so it is installed globally.
+      - run: npm install -g @zeppos/zeus-cli@1.9.3
+
       # Real zeus build. zeus downloads the device list from Zepp's servers.
       - name: zeus build
         run: node scripts/build.js --api ${{ matrix.api }}

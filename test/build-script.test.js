@@ -383,7 +383,7 @@ test("the CLI builds the zab: runs zeus in the stage folder and copies the outpu
   const { logs, execCalls, exitCode } = runCli(["--api", "3.6", "--feature", "camera=true"]);
   assert.equal(exitCode, null);
   assert.equal(execCalls.length, 1);
-  assert.deepEqual([execCalls[0].cmd, execCalls[0].args], ["npx", ["zeus", "build"]]);
+  assert.deepEqual([execCalls[0].cmd, execCalls[0].args], [process.env.ZEUS_BIN || "zeus", ["build"]]);
   assert.equal(execCalls[0].cwd, stageDir("3.6"));
   const nm = path.join(stageDir("3.6"), "node_modules");
   assert.equal(fs.lstatSync(nm).isSymbolicLink(), true);

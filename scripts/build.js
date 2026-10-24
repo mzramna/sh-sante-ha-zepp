@@ -169,7 +169,9 @@ function zeusBuild(dir, level) {
   // zeus resolves @zeppos/zml from the stage dir.
   const nm = path.join(dir, "node_modules");
   if (!fs.existsSync(nm)) fs.symlinkSync(path.join(ROOT, "node_modules"), nm, "dir");
-  execFileSync("npx", ["zeus", "build"], { cwd: dir, stdio: "inherit" });
+  // zeus-cli only works installed globally (`npm i -g @zeppos/zeus-cli`): its
+  // module-alias setup breaks as a project dependency. ZEUS_BIN overrides the path.
+  execFileSync(process.env.ZEUS_BIN || "zeus", ["build"], { cwd: dir, stdio: "inherit" });
   const zab = fs.readdirSync(path.join(dir, "dist")).find((f) => f.endsWith(".zab"));
   if (!zab) throw new Error(`zeus produced no .zab for API ${level}`);
   fs.mkdirSync(path.join(ROOT, "dist"), { recursive: true });

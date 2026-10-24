@@ -35,6 +35,8 @@ jobs:
 
       # zeus needs network access to Zepp's servers to fetch the device list,
       # so this step fails if the runner cannot reach them.
+      # zeus-cli breaks as a project dependency (module-alias), so it is installed globally.
+      - run: npm install -g @zeppos/zeus-cli@1.9.3
       - run: node scripts/build.js --api all
 
       - uses: actions/upload-artifact@v4

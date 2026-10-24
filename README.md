@@ -32,6 +32,7 @@ Xiaomi Band 7 needs a QR-code change before it links to the Zepp App; follow [th
 
 ```sh
 npm install
+npm install -g @zeppos/zeus-cli@1.9.3   # zeus only works as a global install (ZEUS_BIN overrides the path)
 npm run build -- --api 4.0     # one profile
 ZEPP_API=3.6 npm run build     # same, selected by environment variable
 npm run build:all              # 1.0, 3.6 and 4.0
