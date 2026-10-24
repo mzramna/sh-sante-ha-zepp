@@ -124,13 +124,26 @@ function stage(level, args) {
   return { dir, report: { level, tree: "modern", features, variants } };
 }
 
+const MIN_APP_ICON = 124;
+
+// Width/height from a PNG's IHDR chunk; null when the file is not a PNG.
+function pngSize(file) {
+  const b = fs.readFileSync(file);
+  if (b.length < 24 || b.toString("ascii", 12, 16) !== "IHDR") return null;
+  return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+}
+
 // Preliminary pre-compilation check of a staged tree: everything app.json points
 // to must exist, so a broken package fails here instead of on the watch.
 // Returns the list of problems (empty = ok).
 function verifyStage(dir) {
   const problems = [];
   const has = (rel) => fs.existsSync(path.join(dir, rel));
-  const need = (rel, why) => has(rel) || problems.push(`missing ${rel} (${why})`);
+  const need = (rel, why) => {
+    if (has(rel)) return true;
+    problems.push(`missing ${rel} (${why})`);
+    return false;
+  };
   let json;
   try {
     json = JSON.parse(fs.readFileSync(path.join(dir, "app.json"), "utf8"));
@@ -149,7 +162,15 @@ function verifyStage(dir) {
     if (!target.platforms || !target.platforms.length) problems.push(`app.json: target ${name} has no platforms`);
     // v3 targets use assets/<target>.<shape>/, v2 (legacy) assets/<target>/.
     const assetDirs = json.configVersion === "v3" ? target.platforms.map((p) => `assets/${name}.${p.st}`) : [`assets/${name}`];
-    for (const a of assetDirs) need(`${a}/${json.app.icon || "icon.png"}`, `app icon of target ${name}`);
+    for (const a of assetDirs) {
+      const icon = `${a}/${json.app.icon || "icon.png"}`;
+      if (!need(icon, `app icon of target ${name}`)) continue;
+      // zeus warns below this and the store icon looks blurry (Zepp OS design guide).
+      const size = pngSize(path.join(dir, icon));
+      if (json.configVersion === "v3" && size && Math.min(size.w, size.h) < MIN_APP_ICON) {
+        problems.push(`${icon} is ${size.w}x${size.h}, Zepp OS needs at least ${MIN_APP_ICON}x${MIN_APP_ICON}`);
+      }
+    }
   }
   if (json.configVersion === "v3") {
     const theme = has("utils/theme.js") ? fs.readFileSync(path.join(dir, "utils/theme.js"), "utf8") : "";

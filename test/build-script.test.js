@@ -497,3 +497,21 @@ test("the CLI verifies without running zeus, and exits 1 with the problem list o
     exists.mock.restore();
   }
 });
+
+test("verifyStage rejects a modern app icon below the Zepp OS minimum of 124 px", () => {
+  const { dir } = stage("4.0", parseArgs(["--dry-run"]));
+  const icon = path.join(dir, "assets/common.r/icon.png");
+  const png = fs.readFileSync(icon);
+  png.writeUInt32BE(100, 16);
+  png.writeUInt32BE(100, 20);
+  fs.writeFileSync(icon, png);
+  assert.deepEqual(build.verifyStage(dir), ["assets/common.r/icon.png is 100x100, Zepp OS needs at least 124x124"]);
+  fs.writeFileSync(icon, "not a png");
+  assert.deepEqual(build.verifyStage(dir), []);
+});
+
+test("verifyStage reports a missing app icon once, without reading it", () => {
+  const { dir } = stage("4.0", parseArgs(["--dry-run"]));
+  fs.rmSync(path.join(dir, "assets/common.r/icon.png"));
+  assert.deepEqual(build.verifyStage(dir), ["missing assets/common.r/icon.png (app icon of target common)"]);
+});

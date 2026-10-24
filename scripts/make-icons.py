@@ -278,8 +278,36 @@ ICONS = {
 }
 
 
+# App icon: the house glyph on a Home Assistant blue disc. Zepp OS wants at least
+# 124 px; 248 px keeps it sharp when the build scales it down per device.
+APP_ICON = 248
+APP_ICON_PATH = os.path.join(os.path.dirname(OUT_DIR), "icon.png")
+
+
+def app_icon():
+    big = APP_ICON * 4
+    k = big / CANVAS * 0.62  # house glyph (area) coordinates scaled into the disc
+    off = big * 0.19
+    img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.ellipse((0, 0, big - 1, big - 1), fill=(24, 188, 242, 255))
+    w = round(STROKE * k)
+    for line, closed in (
+        ([(22, 62), (64, 22), (106, 62), (106, 110), (22, 110)], True),
+        ([(54, 110), (54, 86), (74, 86), (74, 110)], False),
+    ):
+        pts = [(off + x * k, off + y * k) for x, y in line]
+        pts += [pts[0]] if closed else []
+        d.line(pts, fill=WHITE, width=w)
+        for x, y in pts:
+            d.ellipse((x - w / 2, y - w / 2, x + w / 2, y + w / 2), fill=WHITE)
+    return img.resize((APP_ICON, APP_ICON), Image.Resampling.LANCZOS)
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
+    app_icon().save(APP_ICON_PATH)
+    print("wrote", os.path.relpath(APP_ICON_PATH))
     for name, make in ICONS.items():
         img = make().resize((FINAL, FINAL), Image.Resampling.LANCZOS)
         # LANCZOS leaves 1-3/255 ringing alpha outside the glyph; clear it.
