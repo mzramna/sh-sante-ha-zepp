@@ -1,6 +1,6 @@
 // shortcut: HA returns JPEG; rendering JPEG in an IMG widget is unverified on Zepp OS, which is why FEATURES.camera defaults to off.
 import { SETTING } from "../shared/protocol.js";
-import { baseUrls, joinUrl } from "./http.js";
+import { baseUrls, joinUrl, errorText } from "./http.js";
 
 const ENTITY_ID = /^camera\.[a-z0-9_]+$/;
 
@@ -28,6 +28,7 @@ export async function cameraSnapshot({ entity_id, width, height }, service) {
   const bases = baseUrls();
   if (!bases.length) throw new Error("Home Assistant address not set");
   const token = settings.settingsStorage.getItem(SETTING.TOKEN);
+  if (!token) throw new Error("Home Assistant token not set");
   const name = `camera_${Date.now()}.jpg`;
   let file;
   let lastError;
@@ -43,7 +44,7 @@ export async function cameraSnapshot({ entity_id, width, height }, service) {
       lastError = e;
     }
   }
-  if (!file) throw new Error(`Connection error: ${lastError && lastError.message}`);
+  if (!file) throw new Error(`Connection error: ${errorText(lastError)}`);
   service.sendFile(file.filePath, { type: "image", name });
   return { file: name };
 }

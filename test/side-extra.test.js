@@ -167,8 +167,7 @@ test("getAreas renders the areas template for the enabled entities", async () =>
 });
 
 test(
-  "bug: getAreas on Home Assistant without /api/template returns no areas instead of failing",
-  { todo: "bug: getAreas has no fallback for HA without /api/template (getEntities does); the HTTP 404 reaches the page" },
+  "getAreas on Home Assistant without /api/template returns no areas instead of failing",
   async () => {
     store[SETTING.ENTITY_LIST] = JSON.stringify([{ key: "light.a", value: true }]);
     installFetch([[isTemplate, json(404, "Not Found")]]);
@@ -287,19 +286,17 @@ test("haRequest lets the caller override the Authorization header and works with
 });
 
 test(
-  "bug: haRequest does not send 'Bearer null' when no token is stored",
-  { todo: "bug: haRequest interpolates a missing token as the string 'null' into the Authorization header" },
+  "haRequest does not send 'Bearer null' when no token is stored",
   async () => {
     store = useSettings({ [SETTING.LOCAL_URL]: "https://h" });
     const calls = installFetch([[() => true, { status: 200, body: "[]" }]]);
-    await haRequest("/api/states");
-    assert.equal(calls[0].headers.Authorization, undefined);
+    await assert.rejects(haRequest("/api/states"), /token not set/);
+    assert.equal(calls.length, 0);
   }
 );
 
 test(
-  "bug: a fetch that rejects with a non-Error gives a readable connection message",
-  { todo: "bug: haRequest reads lastError.message, so a string rejection reads 'Connection error: undefined'" },
+  "a fetch that rejects with a non-Error gives a readable connection message",
   async () => {
     globalThis.fetch = async () => {
       throw "socket reset";
@@ -325,20 +322,29 @@ test("register creates a device id on first use and reuses it afterwards", async
   const reg = JSON.parse(calls[0].body);
   assert.equal(reg.device_id, first.device_id);
   assert.equal(reg.device_name, "Zepp watch");
-  assert.equal(reg.model, "Zepp watch");
+  assert.equal(reg.model, "Zepp OS watch");
 });
 
-test("register uses the device name and model the settings page stored", async () => {
-  store.deviceName = "Balance";
-  store.deviceModel = "Balance 2";
-  const calls = installFetch([
-    [(o) => o.url.endsWith("/api/mobile_app/registrations"), json(201, { webhook_id: "wh" })],
-    [(o) => o.url.includes("/api/webhook/wh"), json(200, {})],
+test("updateSensors registers sensors HA reports as not_registered and sends them again", async () => {
+  store[SETTING.MOBILE_APP] = JSON.stringify({ webhook_id: "wh" });
+  const sent = [];
+  installFetch([
+    [
+      (o) => o.url.includes("/api/webhook/wh"),
+      (o) => {
+        const body = JSON.parse(o.body);
+        sent.push(body);
+        const first = sent.filter((b) => b.type === "update_sensor_states").length === 1;
+        return json(200, body.type === "update_sensor_states" && first
+          ? { battery: { success: true }, steps: { success: false, error: { code: "not_registered" } } }
+          : {});
+      },
+    ],
   ]);
-  await mobileApp.register();
-  const reg = JSON.parse(calls[0].body);
-  assert.equal(reg.device_name, "Balance");
-  assert.equal(reg.model, "Balance 2");
+  await mobileApp.updateSensors({ battery: { current: 80 }, steps: { current: 10 } });
+  assert.deepEqual(sent.map((b) => b.type), ["update_sensor_states", "register_sensor", "update_sensor_states"]);
+  assert.equal(sent[1].data.unique_id, "steps");
+  assert.deepEqual(sent[2].data.map((s) => s.unique_id), ["steps"]);
 });
 
 test("register replaces a corrupt stored registration with a fresh device id", async () => {
@@ -438,8 +444,7 @@ test("sync in rest mode falls back to the 'zepp' device name", async () => {
 });
 
 test(
-  "bug: rest mode builds valid entity ids for device names ending in a symbol",
-  { todo: "bug: sendRest turns 'Watch (2)' into sensor.watch_2__battery, which Home Assistant rejects (double underscore)" },
+  "rest mode builds valid entity ids for device names ending in a symbol",
   async () => {
     store[SETTING.SENSOR_MODE] = "rest";
     const calls = installFetch([[() => true, json(200, {})]]);

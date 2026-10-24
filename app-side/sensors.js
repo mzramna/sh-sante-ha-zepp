@@ -21,7 +21,9 @@ const REST_SENSORS = ["heart_rate", "heart_rate_resting", "battery", "steps", "c
 async function sendRest(payload) {
   const device = String((payload.device && payload.device.deviceName) || "zepp")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_");
+    .replace(/[^a-z0-9]+/g, "_")
+    // HA entity ids cannot start/end with "_" or contain "__".
+    .replace(/^_+|_+$/g, "") || "zepp";
   for (const def of SENSOR_DEFS) {
     const value = getPath(payload, def.path);
     if (value === undefined || !REST_SENSORS.includes(def.unique_id)) continue;

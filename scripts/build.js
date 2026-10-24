@@ -26,14 +26,24 @@ const VARIANT = /\.api-(\d+(?:\.\d+)?)\.js$/;
 
 function parseArgs(argv) {
   const args = { api: process.env.ZEPP_API || config.default, debug: false, dryRun: false, shape: null, features: {} };
+  const known = new Set(Object.values(config.profiles).flatMap((p) => Object.keys(p.features || {})));
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--api") args.api = argv[++i];
+    const value = () => {
+      const v = argv[++i];
+      if (v === undefined || v.startsWith("--")) throw new Error(`${a} needs a value`);
+      return v;
+    };
+    if (a === "--api") args.api = value();
     else if (a === "--debug") args.debug = true;
     else if (a === "--dry-run") args.dryRun = true;
-    else if (a === "--shape") args.shape = argv[++i].split(",");
-    else if (a === "--feature") {
-      const [k, v] = argv[++i].split("=");
+    else if (a === "--shape") {
+      args.shape = value().split(",");
+      const bad = args.shape.filter((s) => !SHAPES[s]);
+      if (bad.length) throw new Error(`Unknown shape ${bad.join(",")}; use ${Object.keys(SHAPES).join(",")}`);
+    } else if (a === "--feature") {
+      const [k, v] = value().split("=");
+      if (!known.has(k)) throw new Error(`Unknown feature ${k}; known: ${[...known].join(", ")}`);
       if (v !== "true" && v !== "false") throw new Error(`--feature ${k} needs =true or =false`);
       args.features[k] = v === "true";
     } else throw new Error(`Unknown argument: ${a}`);

@@ -40,7 +40,7 @@ test("toEntity maps light brightness to percent and drops unknown attributes", (
     entity_id: "light.kitchen",
     state: "on",
     area: "Kitchen",
-    attributes: { friendly_name: "Kitchen", brightness: 128, color_mode: "hs", secret: "x", device_class: "y" },
+    attributes: { friendly_name: "Kitchen", brightness: 128, effect: "rainbow", secret: "x", device_class: "y" },
   });
   assert.deepEqual(e, {
     entity_id: "light.kitchen",
@@ -49,7 +49,7 @@ test("toEntity maps light brightness to percent and drops unknown attributes", (
     state: "on",
     unit: "",
     area: "Kitchen",
-    attributes: { brightness_pct: 50, color_mode: "hs" },
+    attributes: { brightness_pct: 50, effect: "rainbow" },
   });
 });
 
@@ -62,7 +62,13 @@ test("toEntity falls back to entity_id for name and keeps unit", () => {
   assert.equal(e.name, "sensor.temp");
   assert.equal(e.unit, "°C");
   assert.equal(e.area, "");
-  assert.deepEqual(e.attributes, { device_class: "temperature" });
+  assert.deepEqual(e.attributes, {});
+});
+
+test("toEntity accepts the [key, value] attribute pairs sent by the template", () => {
+  const e = ha.toEntity({ entity_id: "fan.f", state: "on", attributes: [["friendly_name", "Fan"], ["percentage", 40]] });
+  assert.equal(e.name, "Fan");
+  assert.deepEqual(e.attributes, { percentage: 40 });
 });
 
 test("getEntities without ids uses enabled settings in order and skips entities missing in HA", async () => {

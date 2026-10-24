@@ -7,17 +7,15 @@
 //   `attributes` holds only the domain fields the watch uses, copied as HA sends them
 //   (missing ones are left out), except light brightness converted to percent:
 export const ENTITY_ATTRIBUTES = {
-  light: ["brightness_pct", "supported_color_modes", "color_mode", "rgb_color", "effect", "effect_list"],
-  media_player: ["volume_level", "is_volume_muted", "media_title", "media_artist", "media_position", "media_duration", "supported_features"],
-  climate: ["hvac_modes", "hvac_action", "temperature", "current_temperature", "min_temp", "max_temp", "target_temp_step", "preset_mode", "preset_modes"],
+  light: ["brightness_pct", "supported_color_modes", "effect", "effect_list"],
+  media_player: ["volume_level", "media_title", "media_artist", "supported_features"],
+  climate: ["hvac_modes", "temperature", "current_temperature", "min_temp", "max_temp", "target_temp_step"],
   cover: ["current_position", "supported_features"],
-  fan: ["percentage", "percentage_step", "oscillating", "preset_mode", "preset_modes"],
-  vacuum: ["battery_level", "fan_speed", "fan_speed_list"],
+  fan: ["percentage", "percentage_step", "oscillating"],
+  vacuum: ["battery_level"],
   alarm_control_panel: ["code_format", "code_arm_required"],
-  sensor: ["device_class"],
-  binary_sensor: ["device_class"],
 };
-//   name = friendly_name || entity_id; unit = unit_of_measurement || ""; area = area name || "".
+//   name = friendly_name || entity_id; unit = unit_of_measurement || ""; area = "" (reserved).
 
 export const METHOD = {
   // {ids?: string[]} -> Entity[]; no ids: the entities the user enabled in settings.

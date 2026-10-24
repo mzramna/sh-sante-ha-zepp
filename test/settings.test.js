@@ -146,9 +146,9 @@ test("favorites keep the order they were marked in; unmarking removes", async ()
 
   tree = build();
   assert.equal(favToggles(tree)[0].props.value, true);
-  favToggles(tree)[1].props.onChange(false); // light.a off
+  favToggles(tree)[0].props.onChange(false); // light.a unmarked
   assert.deepEqual(fav(), ["climate.x"]);
-  favToggles(build())[0].props.onChange(true); // already marked, no change
+  favToggles(build())[1].props.onChange(true); // climate.x again: already marked, no change
   assert.deepEqual(fav(), ["climate.x"]);
 });
 
@@ -191,14 +191,13 @@ test("choosing a mode saves it; an interval select appears for any mode but off"
 });
 
 test("zepp2hass: URL must start with http:// or https://", async () => {
-  let tree = await open({ [SETTING.SENSOR_MODE]: "zepp2hass" });
+  await open({ [SETTING.SENSOR_MODE]: "zepp2hass" });
   const url = () => one(build(), "TextInput", "zepp2hass webhook URL");
   const err = "Must start with http:// or https://";
 
   url().props.onChange("ftp://nope");
   assert.equal(store.get(SETTING.ZEPP2HASS_URL), undefined);
-  tree = build();
-  assert.ok(texts(tree).includes(err));
+  assert.ok(texts(build()).includes(err));
 
   url().props.onChange("https://");
   assert.equal(store.get(SETTING.ZEPP2HASS_URL), undefined);

@@ -36,7 +36,8 @@ function enabledIds() {
 // Maps one HA state (plus its area name) to the watch's Entity shape (shared/protocol.js).
 export function toEntity(raw) {
   const id = raw.entity_id;
-  const a = raw.attributes || {};
+  // The template sends attributes as [key, value] pairs; /api/states sends an object.
+  const a = Array.isArray(raw.attributes) ? Object.fromEntries(raw.attributes) : raw.attributes || {};
   const domain = id.split(".")[0];
   const keys = hasOwn(ENTITY_ATTRIBUTES, domain) ? ENTITY_ATTRIBUTES[domain] : [];
   const attributes = {};
@@ -63,13 +64,22 @@ async function renderJson(template) {
   return typeof body === "string" ? JSON.parse(body) : body;
 }
 
-// One state per id, in id order; ids missing in HA are left out.
+// Attributes the watch reads. Copying only these keeps the reply small and avoids
+// datetime attributes (last_triggered, media_position_updated_at) that break tojson.
+const TEMPLATE_KEYS = [
+  ...new Set(["friendly_name", "unit_of_measurement", "brightness", ...Object.values(ENTITY_ATTRIBUTES).flat()]),
+].filter((k) => k !== "brightness_pct");
+
+// One state per id, in id order; ids missing in HA are left out. Attributes come
+// back as [key, value] pairs (no dict building in HA's sandboxed Jinja).
 function entitiesTemplate(ids) {
   return (
-    "{% set ns = namespace(out=[]) %}" +
-    `{% for id in ${JSON.stringify(ids)} %}{% set s = states[id] %}` +
-    '{% if s is not none %}{% set ns.out = ns.out + [{"entity_id": id, "state": s.state, "attributes": s.attributes, "area": area_name(id)}] %}{% endif %}' +
-    "{% endfor %}{{ ns.out | tojson }}"
+    `{% set keys = ${JSON.stringify(TEMPLATE_KEYS)} %}{% set ns = namespace(out=[]) %}` +
+    `{% for id in ${JSON.stringify(ids)} %}{% set s = states[id] %}{% if s is not none %}` +
+    "{% set a = namespace(pairs=[]) %}{% for k in keys %}{% if k in s.attributes %}" +
+    "{% set a.pairs = a.pairs + [[k, s.attributes[k]]] %}{% endif %}{% endfor %}" +
+    '{% set ns.out = ns.out + [{"entity_id": id, "state": s.state, "attributes": a.pairs}] %}' +
+    "{% endif %}{% endfor %}{{ ns.out | tojson }}"
   );
 }
 
@@ -129,7 +139,13 @@ export async function callService({ domain, service, entity_id, data = {} } = {}
 export async function getAreas() {
   const ids = enabledIds();
   if (!ids.length) return [];
-  return renderJson(areasTemplate(ids));
+  try {
+    return await renderJson(areasTemplate(ids));
+  } catch (e) {
+    // Like getEntities: an HA without /api/template still works, just without areas.
+    if (e instanceof HttpError) return [];
+    throw e;
+  }
 }
 
 export function getConfig() {

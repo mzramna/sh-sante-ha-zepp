@@ -166,12 +166,12 @@ test("parseArgs rejects an unknown argument", () => {
   assert.throws(() => parseArgs(["3.6"]), /Unknown argument: 3\.6/);
 });
 
-test("bug: a flag at the end without its value fails with a readable message", { todo: "bug: '--shape' or '--api' as the last argument crashes with a TypeError or 'undefined'" }, () => {
+test("a flag at the end without its value fails with a readable message", () => {
   assert.throws(() => parseArgs(["--shape"]), /--shape needs a value/);
   assert.throws(() => parseArgs(["--api"]), /--api needs a value/);
 });
 
-test("bug: an unknown --feature name is rejected instead of silently ignored", { todo: "bug: --feature accepts any name, so a typo like cmaera=true has no effect and no warning" }, () => {
+test("an unknown --feature name is rejected instead of silently ignored", () => {
   assert.throws(() => parseArgs(["--feature", "cmaera=true"]), /Unknown feature/);
 });
 
@@ -281,8 +281,8 @@ test("appJson uses the --shape platforms and the debug flag", () => {
   assert.equal(json.debug, true);
 });
 
-test("bug: an unknown --shape letter is rejected instead of written as a null platform", { todo: "bug: SHAPES[letter] is undefined for an unknown letter, and app.json gets [null]" }, () => {
-  assert.throws(() => profileJson("3.6", { shape: ["x"] }), /Unknown shape x/);
+test("an unknown --shape letter is rejected instead of written as a null platform", () => {
+  assert.throws(() => parseArgs(["--shape", "r,x"]), /Unknown shape x/);
 });
 
 // ---- stage (writes build/api-<level>) ----

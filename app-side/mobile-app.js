@@ -2,7 +2,7 @@
 // watch as a device, then pushes sensor states through the registration's webhook.
 import { SETTING } from "../shared/protocol.js";
 import { SENSOR_DEFS, getPath } from "../shared/zepp2hass.js";
-import { request, haRequest, joinUrl, baseUrls, HttpError } from "./http.js";
+import { request, haRequest, joinUrl, baseUrls, HttpError, errorText } from "./http.js";
 
 const get = (key) => settings.settingsStorage.getItem(key);
 
@@ -45,9 +45,10 @@ export async function register() {
       app_id: "ha_zepp",
       app_name: "HA Zepp",
       app_version: "2.0.0",
-      device_name: get("deviceName") || "Zepp watch",
+      // The phone side cannot read the watch model; users can rename the device in HA.
+      device_name: "Zepp watch",
       manufacturer: "Amazfit",
-      model: get("deviceModel") || "Zepp watch",
+      model: "Zepp OS watch",
       os_name: "Zepp OS",
       os_version: "",
       supports_encryption: false,
@@ -102,11 +103,13 @@ export async function webhook(type, data) {
       throw e;
     }
   }
-  throw new Error(`Connection error: ${lastError && lastError.message}`);
+  throw new Error(`Connection error: ${errorText(lastError)}`);
 }
 
 // Pushes every payload value that a SENSOR_DEFS path resolves to. Binary sensors take truthiness.
-export function updateSensors(payload) {
+// HA answers per sensor; ones it reports as not_registered (added in a later app version)
+// are registered and sent again.
+export async function updateSensors(payload) {
   const states = [];
   for (const def of SENSOR_DEFS) {
     const value = getPath(payload, def.path);
@@ -117,7 +120,16 @@ export function updateSensors(payload) {
       state: def.type === "binary_sensor" ? Boolean(value) : value,
     });
   }
-  return webhook("update_sensor_states", states);
+  const result = await webhook("update_sensor_states", states);
+  const missing = SENSOR_DEFS.filter(
+    (def) => result && result[def.unique_id] && result[def.unique_id].error && result[def.unique_id].error.code === "not_registered"
+  );
+  for (const def of missing) await webhook("register_sensor", sensorRegistration(def));
+  if (missing.length) {
+    const ids = new Set(missing.map((d) => d.unique_id));
+    await webhook("update_sensor_states", states.filter((s) => ids.has(s.unique_id)));
+  }
+  return result;
 }
 
 export function fireEvent(event_type, event_data) {

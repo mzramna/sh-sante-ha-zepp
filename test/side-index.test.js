@@ -253,8 +253,7 @@ test("unrelated settings keys, including the status key itself, do nothing", asy
 
 // HANDLERS is a plain object, so inherited keys look like methods.
 test(
-  "bug: a method named after an Object.prototype key is not treated as a method",
-  { todo: "bug: onRequest looks up HANDLERS[method] on a plain object; 'toString' answers success instead of 'Unknown method'" },
+  "a method named after an Object.prototype key is not treated as a method",
   async () => {
     const replies = await request({ method: "toString", params: {} });
     assert.equal(replies[0][0], "Unknown method toString");

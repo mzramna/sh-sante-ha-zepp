@@ -7,7 +7,7 @@ declare const settings: {
     addListener(event: "change", cb: (e: { key: string; newValue: string; oldValue: string }) => void): void;
   };
 };
-declare function fetch(opts: { url: string; method?: string; headers?: Record<string, string>; body?: string }): Promise<{ status: number; body: any; headers?: any }>;
+declare function fetch(opts: { url: string; method?: string; headers?: Record<string, string>; body?: string; timeout?: number }): Promise<{ status: number; body: any; headers?: any }>;
 declare function AppSideService(opts: any): void;
 declare function AppSettingsPage(opts: any): void;
 declare function AppService(opts: any): void;

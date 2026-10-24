@@ -31,7 +31,7 @@ AppSideService(
     onInit() {},
 
     onRequest(req, res) {
-      const handler = HANDLERS[req.method];
+      const handler = Object.prototype.hasOwnProperty.call(HANDLERS, req.method) ? HANDLERS[req.method] : null;
       if (!handler) return res(`Unknown method ${req.method}`);
       Promise.resolve()
         .then(() => handler(req.params || {}, this))
@@ -42,7 +42,7 @@ AppSideService(
     },
 
     onSettingsChange({ key }) {
-      const action = SETTING_ACTIONS[key];
+      const action = Object.prototype.hasOwnProperty.call(SETTING_ACTIONS, key) ? SETTING_ACTIONS[key] : null;
       if (!action) return;
       Promise.resolve()
         .then(() => action())
