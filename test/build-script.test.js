@@ -523,3 +523,21 @@ test("--list prints the API profiles as JSON for the CI build matrix, without st
   assert.deepEqual(JSON.parse(logs[0]), Object.keys(config.profiles));
   assert.equal(logs.length, 1);
 });
+
+test("zeus gets every legacy target with --target (no interactive prompt in CI) and nothing extra for v3", () => {
+  const legacy = stage("1.0", parseArgs(["--dry-run"])).dir;
+  const targets = Object.keys(JSON.parse(fs.readFileSync(path.join(legacy, "app.json"), "utf8")).targets);
+  assert.ok(targets.length > 1);
+  assert.deepEqual(build.zeusArgs(legacy), ["build", "--target", targets.join(",")]);
+  const modern = stage("4.0", parseArgs(["--dry-run"])).dir;
+  assert.deepEqual(build.zeusArgs(modern), ["build"]);
+});
+
+test("the CLI passes the legacy targets to zeus", () => {
+  const { execCalls, exitCode } = runCli(["--api", "1.0"]);
+  assert.equal(exitCode, null);
+  assert.equal(execCalls[0].args[0], "build");
+  assert.equal(execCalls[0].args[1], "--target");
+  assert.match(execCalls[0].args[2], /^amazfit-active,amazfit-balance,/);
+  fs.rmSync(path.join(ROOT, "dist", "ha-zepp-api1.0.zab"), { force: true });
+});

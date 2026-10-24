@@ -188,13 +188,23 @@ function verifyStage(dir) {
   return problems;
 }
 
+// configVersion v2 apps (legacy) with several targets make `zeus build` ask
+// which targets to build, which fails without a terminal (CI). Passing every
+// target with --target skips that prompt. v3 apps must not get --target: it
+// switches zeus to interactive device selection.
+function zeusArgs(dir) {
+  const json = JSON.parse(fs.readFileSync(path.join(dir, "app.json"), "utf8"));
+  if (json.configVersion === "v3") return ["build"];
+  return ["build", "--target", Object.keys(json.targets || {}).join(",")];
+}
+
 function zeusBuild(dir, level) {
   // zeus resolves @zeppos/zml from the stage dir.
   const nm = path.join(dir, "node_modules");
   if (!fs.existsSync(nm)) fs.symlinkSync(path.join(ROOT, "node_modules"), nm, "dir");
   // zeus-cli only works installed globally (`npm i -g @zeppos/zeus-cli`): its
   // module-alias setup breaks as a project dependency. ZEUS_BIN overrides the path.
-  execFileSync(process.env.ZEUS_BIN || "zeus", ["build"], { cwd: dir, stdio: "inherit" });
+  execFileSync(process.env.ZEUS_BIN || "zeus", zeusArgs(dir), { cwd: dir, stdio: "inherit" });
   const zab = fs.readdirSync(path.join(dir, "dist")).find((f) => f.endsWith(".zab"));
   if (!zab) throw new Error(`zeus produced no .zab for API ${level}`);
   fs.mkdirSync(path.join(ROOT, "dist"), { recursive: true });
@@ -229,4 +239,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { parseArgs, resolveVariants, appJson, stage, versionNum, verifyStage };
+module.exports = { parseArgs, resolveVariants, appJson, stage, versionNum, verifyStage, zeusArgs };
