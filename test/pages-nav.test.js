@@ -5,6 +5,8 @@ import { state, reset, respond, openOnce as open, texts, findText, click, clicka
 import { FEATURES } from "../config/build.js";
 import { COLOR, DOMAINS } from "../utils/theme.js";
 import { GROUP_DOMAINS } from "../utils/groups.js";
+import { runTap } from "../utils/nav.js";
+import { BasePage } from "@zeppos/zml/base-page";
 
 const ent = (entity_id, name, st = "off", extra = {}) => ({ entity_id, name, state: st, ...extra });
 const LIGHT = ent("light.a", "Lamp");
@@ -17,7 +19,7 @@ const ALL = [LIGHT, SWITCH, SENSOR, SCRIPT];
 const STRINGS = {
   favorites: "Favorites", devices: "Devices", scripts: "Scripts", sensors: "Sensors", areas: "Areas", sync: "Sync",
   done: "Done", action_failed: "Failed", no_entities: "No entities", no_areas: "No areas", entities: "entities",
-  loading: "Loading", state_on: "On", state_off: "Off",
+  sleep_as_android: "Sleep as Android", loading: "Loading", state_on: "On", state_off: "Off",
 };
 
 // GET_ENTITIES answers with the entities of `ids` when given, like the phone does.
@@ -69,18 +71,39 @@ test("home without favourites draws only the categories", async () => {
   assert.ok(!t.includes("Sync"), "sync hidden when no sensor mode and feature off");
 });
 
-test("home shows the sync category when the phone app service feature is on or sensors are pushed", async () => {
+test("home shows the sync category only when the app service is on and sensors are pushed", async () => {
   setup({ GET_CONFIG: { favorites: [], sensorMode: "none" } });
   await hasFeature("appService", true, () => open("page/home/index.js"));
-  assert.ok(texts().includes("Sync"), "appService feature alone shows sync");
+  assert.ok(!texts().includes("Sync"), "app service alone: nothing to sync");
 
   setup({ GET_CONFIG: { favorites: [], sensorMode: "zepp2hass" } });
   await hasFeature("appService", false, () => open("page/home/index.js"));
-  assert.ok(texts().includes("Sync"), "a sensor mode alone shows sync");
+  assert.ok(!texts().includes("Sync"), "sensors alone: no app service");
 
-  setup({ GET_CONFIG: { favorites: [], sensorMode: "none" } });
-  await hasFeature("appService", false, () => open("page/home/index.js"));
-  assert.ok(!texts().includes("Sync"), "neither: no sync");
+  setup({ GET_CONFIG: { favorites: [], sensorMode: "zepp2hass" } });
+  await hasFeature("appService", true, () => open("page/home/index.js"));
+  assert.ok(texts().includes("Sync"), "both: sync shown");
+});
+
+test("home shows the Sleep as Android card only with a notify service and the sleep feature", async () => {
+  setup({ GET_CONFIG: { favorites: [], sensorMode: "none", saaNotifyService: "mobile_app_pixel_8" } });
+  await open("page/home/index.js");
+  assert.ok(texts().includes("Sleep as Android"), texts().join("|"));
+
+  setup({ GET_CONFIG: { favorites: [], sensorMode: "none", saaNotifyService: "" } });
+  await open("page/home/index.js");
+  assert.ok(!texts().includes("Sleep as Android"), "no notify service");
+
+  setup({ GET_CONFIG: { favorites: [], sensorMode: "none", saaNotifyService: "mobile_app_pixel_8" } });
+  await hasFeature("sleepAsAndroid", false, () => open("page/home/index.js"));
+  assert.ok(!texts().includes("Sleep as Android"), "feature off");
+});
+
+test("tapping the Sleep as Android card opens the sleep page", async () => {
+  setup({ GET_CONFIG: { favorites: [], sensorMode: "none", saaNotifyService: "mobile_app_pixel_8" } });
+  await open("page/home/index.js");
+  await click(findText("Sleep as Android"));
+  assert.deepEqual(state.routes, [{ type: "push", url: "page/sleep/index", params: undefined }]);
 });
 
 test("home category buttons open the entity groups and areas", async () => {
@@ -118,11 +141,12 @@ test("tapping a favourite with a service runs it, toasts done and reloads the ho
   setup({
     GET_CONFIG: { favorites: ["switch.s"], sensorMode: "none" },
     CALL_SERVICE: { ok: true },
+    GET_ENTITY: { ...SWITCH, state: "off" },
   });
   await open("page/home/index.js");
   state.requests = [];
   await click(clickable("Desk Switch"));
-  assert.deepEqual(state.requests.map((r) => r.method), ["CALL_SERVICE", "GET_CONFIG", "GET_ENTITIES"]);
+  assert.deepEqual(state.requests.map((r) => r.method), ["CALL_SERVICE", "GET_ENTITY", "GET_CONFIG", "GET_ENTITIES"]);
   assert.deepEqual(state.requests[0].params, { domain: "switch", service: "toggle", entity_id: "switch.s" });
   assert.deepEqual(state.toasts, ["Done"]);
   assert.deepEqual(state.routes, []);
@@ -183,7 +207,7 @@ test("home onDestroy clears every widget the page drew", async () => {
   assert.deepEqual(state.widgets, []);
 });
 
-test("home load that finishes after the page was destroyed does not draw", { todo: "bug: home load in flight at onDestroy still renders its widgets afterwards" }, async () => {
+test("home load that finishes after the page was destroyed does not draw", async () => {
   reset();
   state.strings = { ...STRINGS };
   let release;
@@ -320,18 +344,12 @@ test("a failed service call on the entities page toasts the failure and keeps th
   assert.ok(texts().includes("Desk Switch"));
 });
 
-test("when the service works but the refresh fails the done toast still shows", async () => {
+test("when the service works but the refresh fails the user is not told the action failed", async () => {
   setup({ CALL_SERVICE: { ok: true }, GET_ENTITY: new Error("gone") });
   await open("page/entities/index.js", { group: "devices" });
   await click(clickable("Desk Switch"));
-  assert.equal(state.toasts[0], "Done");
-});
-
-test("when the service works but the refresh fails the user is not told the action failed", { todo: "bug: entities page shows 'action failed' after a successful service call when only the refresh fails" }, async () => {
-  setup({ CALL_SERVICE: { ok: true }, GET_ENTITY: new Error("gone") });
-  await open("page/entities/index.js", { group: "devices" });
-  await click(clickable("Desk Switch"));
-  assert.ok(!state.toasts.includes("Failed"), state.toasts.join("|"));
+  assert.deepEqual(state.toasts, ["Done"]);
+  assert.ok(texts().includes("On"), "card keeps its last known state");
 });
 
 test("tapping a sensor on the entities page does nothing", async () => {
@@ -352,7 +370,7 @@ test("entities page onDestroy clears its widgets", async () => {
   assert.deepEqual(state.widgets, []);
 });
 
-test("entities load that finishes after the page was destroyed does not draw", { todo: "bug: entities load in flight at onDestroy still renders its widgets afterwards" }, async () => {
+test("entities load that finishes after the page was destroyed does not draw", async () => {
   reset();
   state.strings = { ...STRINGS };
   let release;
@@ -410,7 +428,7 @@ test("areas onDestroy clears its widgets", async () => {
   assert.deepEqual(state.widgets, []);
 });
 
-test("areas load that finishes after the page was destroyed does not draw", { todo: "bug: areas load in flight at onDestroy still renders its widgets afterwards" }, async () => {
+test("areas load that finishes after the page was destroyed does not draw", async () => {
   reset();
   state.strings = { ...STRINGS };
   let release;
@@ -420,6 +438,94 @@ test("areas load that finishes after the page was destroyed does not draw", { to
   release(AREAS);
   await flush();
   assert.deepEqual(state.widgets, []);
+});
+
+// ---- runTap (utils/nav.js) ---------------------------------------------------
+
+// A page stand-in with what runTap uses: request (answered by respond()) and state.alive.
+const navPage = () => ({ ...BasePage({}), state: { alive: true } });
+const beginNav = () => {
+  reset();
+  state.strings = { ...STRINGS };
+};
+
+test("runTap opens an entity's own page without any request", () => {
+  beginNav();
+  runTap(navPage(), LIGHT, () => assert.fail("no onDone for a page tap"));
+  assert.deepEqual(state.routes, [{ type: "push", url: "page/light/index", params: '{"entity_id":"light.a"}' }]);
+  assert.deepEqual(state.requests, []);
+});
+
+test("runTap does nothing for an entity without a tap action", () => {
+  beginNav();
+  runTap(navPage(), SENSOR, () => assert.fail("no onDone without an action"));
+  assert.deepEqual(state.routes, []);
+  assert.deepEqual(state.requests, []);
+  assert.deepEqual(state.toasts, []);
+});
+
+test("runTap runs the service, toasts done and hands the refreshed entity to onDone", async () => {
+  beginNav();
+  respond({ CALL_SERVICE: { ok: true }, GET_ENTITY: { ...SWITCH, state: "off" } });
+  let got;
+  runTap(navPage(), SWITCH, (en) => (got = en));
+  await flush();
+  assert.deepEqual(state.requests.map((r) => r.method), ["CALL_SERVICE", "GET_ENTITY"]);
+  assert.deepEqual(state.requests[0].params, { domain: "switch", service: "toggle", entity_id: "switch.s" });
+  assert.deepEqual(state.requests[1].params, { entity_id: "switch.s" });
+  assert.deepEqual(state.toasts, ["Done"]);
+  assert.equal(got.state, "off");
+});
+
+test("runTap keeps the old entity and still says done when only the refresh fails", async () => {
+  beginNav();
+  respond({ CALL_SERVICE: { ok: true }, GET_ENTITY: new Error("gone") });
+  let got;
+  runTap(navPage(), SWITCH, (en) => (got = en));
+  await flush();
+  assert.deepEqual(state.toasts, ["Done"]);
+  assert.equal(got, SWITCH);
+});
+
+test("runTap toasts a failed service call once and skips the refresh and onDone", async () => {
+  beginNav();
+  respond({ CALL_SERVICE: new Error("device offline") });
+  let called = false;
+  runTap(navPage(), SWITCH, () => (called = true));
+  await flush();
+  assert.deepEqual(state.requests.map((r) => r.method), ["CALL_SERVICE"]);
+  assert.deepEqual(state.toasts, ["Failed"]);
+  assert.equal(called, false);
+});
+
+test("runTap says nothing and calls nothing once the page is gone", async () => {
+  beginNav();
+  let release;
+  respond({ CALL_SERVICE: () => new Promise((r) => (release = r)), GET_ENTITY: SWITCH });
+  const page = navPage();
+  let called = false;
+  runTap(page, SWITCH, () => (called = true));
+  await flush(); // the service call is pending
+  page.state.alive = false;
+  release({ ok: true });
+  await flush();
+  assert.deepEqual(state.requests.map((r) => r.method), ["CALL_SERVICE"]);
+  assert.deepEqual(state.toasts, []);
+  assert.equal(called, false);
+});
+
+test("runTap does not call onDone when the page is destroyed during the refresh", async () => {
+  beginNav();
+  let release;
+  respond({ CALL_SERVICE: { ok: true }, GET_ENTITY: () => new Promise((r) => (release = r)) });
+  const page = navPage();
+  let called = false;
+  runTap(page, SWITCH, () => (called = true));
+  await flush(); // the refresh is pending
+  page.state.alive = false;
+  release(SWITCH);
+  await flush();
+  assert.equal(called, false);
 });
 
 // ---- navigation contracts ----------------------------------------------------

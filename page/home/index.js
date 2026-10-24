@@ -5,8 +5,8 @@ import { BasePage } from "@zeppos/zml/base-page";
 import { METHOD } from "../../shared/protocol.js";
 import { FEATURES } from "../../config/build.js";
 import { W, TOP, MARGIN, COLOR, FONT } from "../../utils/theme.js";
-import { createTracked, clear, title, message, loading, entityCard, actionButton, toast } from "../../utils/ui.js";
-import { tapAction } from "../../utils/groups.js";
+import { createTracked, clear, title, message, loading, entityCard, actionButton } from "../../utils/ui.js";
+import { runTap } from "../../utils/nav.js";
 
 const CATEGORY_H = 80;
 const GAP = 12;
@@ -15,8 +15,10 @@ Page(
   BasePage({
     state: {
       widgets: [],
+      alive: false,
     },
     build() {
+      this.state.alive = true;
       loading(this.state.widgets);
       this.load();
     },
@@ -26,10 +28,12 @@ Page(
         this.request({ method: METHOD.GET_ENTITIES, params: {} }),
       ])
         .then(([config, entities]) => {
+          if (!this.state.alive) return;
           clear(this.state.widgets);
           this.render(config, entities);
         })
         .catch((e) => {
+          if (!this.state.alive) return;
           clear(this.state.widgets);
           message(this.state.widgets, (e && e.message) || String(e), COLOR.danger);
         });
@@ -60,8 +64,11 @@ Page(
         { text: getText("sensors"), onClick: () => this.open("page/entities/index", { group: "sensors" }) },
         { text: getText("areas"), onClick: () => this.open("page/areas/index") },
       ];
-      if (FEATURES.appService || config.sensorMode !== "none") {
+      if (FEATURES.appService && config.sensorMode !== "none") {
         categories.push({ text: getText("sync"), onClick: () => this.open("page/sync/index") });
+      }
+      if (FEATURES.sleepAsAndroid && config.saaNotifyService) {
+        categories.push({ text: getText("sleep_as_android"), onClick: () => this.open("page/sleep/index") });
       }
       for (const c of categories) {
         actionButton(list, { x: MARGIN, y, w: W - MARGIN * 2, h: CATEGORY_H, text: c.text, onClick: c.onClick });
@@ -72,23 +79,11 @@ Page(
       push({ url, params: params && JSON.stringify(params) });
     },
     tap(entity) {
-      const action = tapAction(entity);
-      if (!action) return;
-      if (action.page) {
-        this.open(action.page, { entity_id: entity.entity_id });
-        return;
-      }
-      this.request({
-        method: METHOD.CALL_SERVICE,
-        params: { domain: action.domain, service: action.service, entity_id: entity.entity_id },
-      })
-        .then(() => {
-          toast(getText("done"));
-          return this.load();
-        })
-        .catch(() => toast(getText("action_failed")));
+      // A favourite's service changed HA state, so reload the whole page (favourites included).
+      runTap(this, entity, () => this.load());
     },
     onDestroy() {
+      this.state.alive = false;
       clear(this.state.widgets);
     },
   })

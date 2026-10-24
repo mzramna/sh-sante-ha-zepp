@@ -9,12 +9,18 @@ Page(
   BasePage({
     state: {
       widgets: [],
+      alive: false,
     },
     build() {
+      this.state.alive = true;
       loading(this.state.widgets);
       this.request({ method: METHOD.GET_AREAS, params: {} })
-        .then((areas) => this.render(areas))
+        .then((areas) => {
+          if (!this.state.alive) return;
+          this.render(areas);
+        })
         .catch((e) => {
+          if (!this.state.alive) return;
           clear(this.state.widgets);
           message(this.state.widgets, (e && e.message) || String(e), COLOR.danger);
         });
@@ -43,6 +49,7 @@ Page(
       }
     },
     onDestroy() {
+      this.state.alive = false;
       clear(this.state.widgets);
     },
   })

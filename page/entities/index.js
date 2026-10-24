@@ -1,10 +1,10 @@
-import { push } from "@zos/router";
 import { getText } from "@zos/i18n";
 import { BasePage } from "@zeppos/zml/base-page";
 import { METHOD } from "../../shared/protocol.js";
 import { TOP, COLOR } from "../../utils/theme.js";
-import { clear, title, message, loading, entityCard, toast } from "../../utils/ui.js";
-import { filterGroup, tapAction } from "../../utils/groups.js";
+import { clear, title, message, loading, entityCard } from "../../utils/ui.js";
+import { filterGroup } from "../../utils/groups.js";
+import { runTap } from "../../utils/nav.js";
 
 // Params (JSON string): { group } | { area_id, name } | { ids, title }.
 Page(
@@ -13,11 +13,13 @@ Page(
       query: null, // set in onInit from the route params
       entities: [],
       widgets: [],
+      alive: false,
     },
     onInit(params) {
       this.state.query = JSON.parse(params || "{}");
     },
     build() {
+      this.state.alive = true;
       loading(this.state.widgets);
       this.load();
     },
@@ -26,10 +28,12 @@ Page(
       const fetched = q.area_id ? this.fetchArea(q.area_id) : this.fetchEntities(q);
       return fetched
         .then((entities) => {
+          if (!this.state.alive) return;
           this.state.entities = entities;
           this.render();
         })
         .catch((e) => {
+          if (!this.state.alive) return;
           clear(this.state.widgets);
           message(this.state.widgets, (e && e.message) || String(e), COLOR.danger);
         });
@@ -64,31 +68,17 @@ Page(
       }
     },
     tap(entity) {
-      const action = tapAction(entity);
-      if (!action) return;
-      if (action.page) {
-        push({ url: action.page, params: JSON.stringify({ entity_id: entity.entity_id }) });
-        return;
-      }
-      this.request({
-        method: METHOD.CALL_SERVICE,
-        params: { domain: action.domain, service: action.service, entity_id: entity.entity_id },
-      })
-        .then(() => {
-          toast(getText("done"));
-          return this.request({ method: METHOD.GET_ENTITY, params: { entity_id: entity.entity_id } });
-        })
-        .then((fresh) => {
-          this.state.entities = this.state.entities.map((en) => (en.entity_id === fresh.entity_id ? fresh : en));
-          this.render();
-        })
-        .catch(() => toast(getText("action_failed")));
+      runTap(this, entity, (fresh) => {
+        this.state.entities = this.state.entities.map((en) => (en.entity_id === fresh.entity_id ? fresh : en));
+        this.render();
+      });
     },
     heading() {
       const q = this.state.query;
       return q.group ? getText(q.group) : q.name || q.title || "";
     },
     onDestroy() {
+      this.state.alive = false;
       clear(this.state.widgets);
     },
   })
