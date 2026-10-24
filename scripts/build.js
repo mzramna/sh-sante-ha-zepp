@@ -2,7 +2,7 @@
 // Builds one .zab per Zepp OS API profile from build.config.js.
 //
 //   node scripts/build.js [--api <level>|all] [--debug] [--shape r,s]
-//                         [--feature name=true|false]... [--dry-run]
+//                         [--feature name=true|false]... [--dry-run] [--verify]
 //
 // Env: ZEPP_API is used when --api is not given. Each profile is staged in
 // build/api-<level>/ (tree copy + generated app.json and config/build.js, with
@@ -37,6 +37,7 @@ function parseArgs(argv) {
     if (a === "--api") args.api = value();
     else if (a === "--debug") args.debug = true;
     else if (a === "--dry-run") args.dryRun = true;
+    else if (a === "--verify") args.verify = args.dryRun = true;
     else if (a === "--shape") {
       args.shape = value().split(",");
       const bad = args.shape.filter((s) => !SHAPES[s]);
@@ -123,6 +124,47 @@ function stage(level, args) {
   return { dir, report: { level, tree: "modern", features, variants } };
 }
 
+// Preliminary pre-compilation check of a staged tree: everything app.json points
+// to must exist, so a broken package fails here instead of on the watch.
+// Returns the list of problems (empty = ok).
+function verifyStage(dir) {
+  const problems = [];
+  const has = (rel) => fs.existsSync(path.join(dir, rel));
+  const need = (rel, why) => has(rel) || problems.push(`missing ${rel} (${why})`);
+  let json;
+  try {
+    json = JSON.parse(fs.readFileSync(path.join(dir, "app.json"), "utf8"));
+  } catch (e) {
+    return [`app.json unreadable: ${e.message}`];
+  }
+  if (!json.configVersion) problems.push("app.json: configVersion missing");
+  if (!json.app || !json.app.appId) problems.push("app.json: app.appId missing");
+  if (!json.runtime || !json.runtime.apiVersion) problems.push("app.json: runtime.apiVersion missing");
+  for (const [name, target] of Object.entries(json.targets || {})) {
+    const m = target.module || {};
+    for (const page of (m.page && m.page.pages) || []) need(`${page}.js`, `page of target ${name}`);
+    for (const svc of (m["app-service"] && m["app-service"].services) || []) need(`${svc}.js`, `app-service of target ${name}`);
+    if (m["app-side"]) need(`${m["app-side"].path}.js`, `app-side of target ${name}`);
+    if (m.setting) need(`${m.setting.path}.js`, `settings of target ${name}`);
+    if (!target.platforms || !target.platforms.length) problems.push(`app.json: target ${name} has no platforms`);
+    // v3 targets use assets/<target>.<shape>/, v2 (legacy) assets/<target>/.
+    const assetDirs = json.configVersion === "v3" ? target.platforms.map((p) => `assets/${name}.${p.st}`) : [`assets/${name}`];
+    for (const a of assetDirs) need(`${a}/${json.app.icon || "icon.png"}`, `app icon of target ${name}`);
+  }
+  if (json.configVersion === "v3") {
+    const theme = has("utils/theme.js") ? fs.readFileSync(path.join(dir, "utils/theme.js"), "utf8") : "";
+    const icons = new Set([...theme.matchAll(/icon: "([\w.-]+\.png)"/g)].map((m) => m[1]));
+    for (const icon of icons) need(`assets/common.r/icons/${icon}`, "domain icon in utils/theme.js");
+    need("page/i18n/en-US.po", "default watch translations");
+  }
+  const walk = (d) =>
+    fs.readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? (e.name === "node_modules" ? [] : walk(path.join(d, e.name))) : [path.join(d, e.name)]
+    );
+  for (const f of walk(dir)) if (VARIANT.test(f)) problems.push(`unresolved API variant ${path.relative(dir, f)}`);
+  return problems;
+}
+
 function zeusBuild(dir, level) {
   // zeus resolves @zeppos/zml from the stage dir.
   const nm = path.join(dir, "node_modules");
@@ -142,6 +184,11 @@ function main() {
   for (const level of levels) {
     const { dir, report } = stage(level, args);
     console.log(JSON.stringify(report));
+    if (args.verify) {
+      const problems = verifyStage(dir);
+      if (problems.length) throw new Error(`API ${level}: pre-compilation check failed:\n  ${problems.join("\n  ")}`);
+      console.log(`verified API ${level}`);
+    }
     if (!args.dryRun) console.log(`built ${zeusBuild(dir, level)}`);
   }
 }
@@ -155,4 +202,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { parseArgs, resolveVariants, appJson, stage, versionNum };
+module.exports = { parseArgs, resolveVariants, appJson, stage, versionNum, verifyStage };

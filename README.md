@@ -96,7 +96,15 @@ npm test               # node:test suite: watch pages, phone side, app service, 
 npm run test:coverage  # same, with per-file coverage and minimum thresholds
 npm run check          # tsc type check against @zeppos/device-types and ZML typings
 npm run i18n           # regenerate page/i18n/*.po from i18n-src/*.json
+npm run verify         # preliminary pre-compilation: stage every API profile and check the package is complete
 ```
+
+### Pull request checks
+Every pull request runs `.github/workflows/pr.yml`:
+- **verify**: tests with coverage thresholds, type check, translations in sync with `i18n-src`, and `npm run verify` (each API profile is staged and every page, service, icon and translation `app.json` points to must exist).
+- **precompile (API 1.0 / 3.6 / 4.0)**: the real `zeus build` per profile; the `.zab` files are attached to the run as artifacts for testing on a watch.
+
+To block merging until they pass, add `verify` and the three `precompile (API …)` checks as **required status checks** in *Settings → Branches → branch protection rule for `main`* (or a ruleset with "Require status checks to pass").
 
 Tests run the real watch and phone code in Node: `test/helpers/setup.js` maps every `@zos/*` and `@zeppos/zml/*` import to small mocks in `test/mocks/` and provides the runtime globals (`Page`, `AppService`, `AppSideService`, `settings`, `fetch`). See `test/helpers/watch.js` and `test/helpers/phone.js`.
 

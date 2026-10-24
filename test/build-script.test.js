@@ -432,3 +432,68 @@ test("node scripts/build.js reads ZEPP_API when --api is not given", () => {
   assert.equal(res.status, 0, res.stderr);
   assert.equal(JSON.parse(res.stdout.trim()).level, "3.6");
 });
+
+// ---- --verify (preliminary pre-compilation check) ----
+
+test("--verify implies --dry-run", () => {
+  const args = parseArgs(["--verify"]);
+  assert.equal(args.verify, true);
+  assert.equal(args.dryRun, true);
+});
+
+test("verifyStage accepts every staged profile as it is in the repo", () => {
+  for (const level of Object.keys(config.profiles)) {
+    const { dir } = stage(level, parseArgs(["--dry-run"]));
+    assert.deepEqual(build.verifyStage(dir), [], `profile ${level}`);
+  }
+});
+
+test("verifyStage lists missing pages, icons, translations and unresolved variants", () => {
+  const { dir } = stage("4.0", parseArgs(["--dry-run"]));
+  fs.rmSync(path.join(dir, "page/fan/index.js"));
+  fs.rmSync(path.join(dir, "assets/common.r/icons/lock.png"));
+  fs.rmSync(path.join(dir, "page/i18n/en-US.po"));
+  fs.writeFileSync(path.join(dir, "utils/x.api-9.0.js"), "");
+  const problems = build.verifyStage(dir);
+  assert.ok(problems.some((p) => p.startsWith("missing page/fan/index.js")), problems.join("\n"));
+  assert.ok(problems.some((p) => p.startsWith("missing assets/common.r/icons/lock.png")));
+  assert.ok(problems.some((p) => p.startsWith("missing page/i18n/en-US.po")));
+  assert.ok(problems.includes("unresolved API variant utils/x.api-9.0.js"));
+});
+
+test("verifyStage checks app.json fields and the legacy per-target assets", () => {
+  const legacy = stage("1.0", parseArgs(["--dry-run"])).dir;
+  fs.rmSync(path.join(legacy, "assets/mi-band7/icon.png"));
+  assert.deepEqual(build.verifyStage(legacy), ["missing assets/mi-band7/icon.png (app icon of target mi-band7)"]);
+
+  const { dir } = stage("4.0", parseArgs(["--dry-run"]));
+  const file = path.join(dir, "app.json");
+  const json = JSON.parse(fs.readFileSync(file, "utf8"));
+  delete json.configVersion;
+  delete json.runtime;
+  json.targets.common.platforms = [];
+  fs.writeFileSync(file, JSON.stringify(json));
+  const problems = build.verifyStage(dir);
+  for (const p of ["app.json: configVersion missing", "app.json: runtime.apiVersion missing", "app.json: target common has no platforms"]) {
+    assert.ok(problems.includes(p), problems.join("\n"));
+  }
+  fs.writeFileSync(file, "{");
+  assert.match(build.verifyStage(dir)[0], /^app.json unreadable/);
+});
+
+test("the CLI verifies without running zeus, and exits 1 with the problem list on a broken package", () => {
+  const ok = runCli(["--api", "4.0", "--verify"]);
+  assert.equal(ok.exitCode, null);
+  assert.equal(ok.execCalls.length, 0, "zeus must not run with --verify");
+  assert.ok(ok.logs.includes("verified API 4.0"));
+
+  const real = fs.existsSync;
+  const exists = mock.method(fs, "existsSync", (p) => !String(p).endsWith(path.join("page", "fan", "index.js")) && real(p));
+  try {
+    const bad = runCli(["--api", "4.0", "--verify"]);
+    assert.equal(bad.exitCode, 1);
+    assert.match(bad.errors.join("\n"), /API 4\.0: pre-compilation check failed:\n  missing page\/fan\/index\.js/);
+  } finally {
+    exists.mock.restore();
+  }
+});

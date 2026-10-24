@@ -1,10 +1,10 @@
 name: CI
 
+# Builds and publishes the prerelease from main. Pull requests are checked by pr.yml.
 on:
   push:
     branches:
       - main
-  pull_request:
 
 permissions:
   contents: read

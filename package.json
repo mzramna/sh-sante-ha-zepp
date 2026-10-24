@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node scripts/build.js",
     "build:all": "node scripts/build.js --api all",
+    "verify": "node scripts/build.js --api all --verify",
     "i18n": "node scripts/i18n.js",
     "test": "node --import ./test/helpers/setup.js --test 'test/**/*.test.js'",
     "check": "tsc -p jsconfig.json",
