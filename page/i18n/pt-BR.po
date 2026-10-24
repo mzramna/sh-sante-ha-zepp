@@ -19,6 +19,9 @@ msgstr "Bateria"
 msgid "camera_disabled"
 msgstr "Fotos de câmera desativadas nesta versão"
 
+msgid "camera_no_file"
+msgstr "Nenhuma imagem chegou do Home Assistant"
+
 msgid "camera_refresh"
 msgstr "Atualizar"
 

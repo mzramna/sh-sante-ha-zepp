@@ -39,9 +39,10 @@ function cameraService() {
     download(url, opts) {
       downloads.push({ url, opts });
       const task = {};
-      queueMicrotask(() => task.onSuccess({ filePath: opts.filePath }));
+      queueMicrotask(() => task.onSuccess({ filePath: opts.filePath, statusCode: 200 }));
       return task;
     },
+    convert: async () => ({}),
     sendFile(path, opts) {
       sent.push({ path, opts });
     },
@@ -118,7 +119,7 @@ test("CAMERA_SNAPSHOT routes to cameraSnapshot with the service as second argume
   assert.equal(err, null);
   assert.equal(service.downloads[0].url, "https://h/api/camera_proxy/camera.front?width=400&height=300");
   assert.equal(service.sent[0].path, service.downloads[0].opts.filePath);
-  assert.match(out.file, /^camera_\d+\.jpg$/);
+  assert.match(out.file, /^camera_\d+\.png$/);
   assert.equal(service.sent[0].opts.name, out.file);
 });
 

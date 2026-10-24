@@ -58,7 +58,7 @@ test("service: blocked storage is survived; the run still sends and schedules", 
 
 // runSync schedules a retry before sending and the next run after. With storage blocked the id of the
 // first one cannot be read back, so it is never cancelled and every run adds alarms.
-test("bug: with storage blocked the pre-send retry alarm is never cancelled", { todo: "bug: blocked storage leaves the pre-send retry alarm running, so each run adds alarms" }, async () => {
+test("with storage blocked the pre-send retry alarm is still replaced", async () => {
   reset();
   localStorage.getItem = boom;
   localStorage.setItem = boom;
@@ -188,11 +188,11 @@ test("page: start with a refused alarm says so and stores nothing", async () => 
   assert.ok(findText("sync_start"), "still offers to start");
 });
 
-test("page: starting replaces an alarm the system will not cancel; stopping ignores the same refusal", async () => {
+test("page: stopping an alarm the system will not cancel still clears the stored id", async () => {
   reset();
   respond({ GET_CONFIG: { sensorMode: "zepp2hass" } });
   state.storage.set("sync_alarm_id", "5");
-  state.storage.set("last_sync", "not json at all");
+  state.storage.set("last_sync", "not json at all"); // unreadable last sync is shown as never synced
   state.alarms.set(5, { url: "app-service/sync" });
   refuse.cancel = true;
   const page = await open("page/sync/index.js");
@@ -225,6 +225,23 @@ test("page: a sync that returns no text reason in its error is shown as the Stri
   await click(findText("sync_now"));
   assert.equal(JSON.parse(state.storage.get("last_sync")).error, "plain text");
   assert.ok(texts().some((t) => t === "sync_error: plain text"), texts().join("|"));
+});
+
+test("page: starting again replaces the stored alarm; one the system will not cancel keeps running", async () => {
+  reset();
+  respond({ GET_CONFIG: { sensorMode: "rest" } });
+  state.storage.set("sync_alarm_id", "4");
+  state.alarms.set(4, {});
+  const page = await open("page/sync/index.js");
+  page.startAuto(); // the button only offers start when no alarm is stored, so call the handler directly
+  assert.equal(state.alarms.has(4), false, "the stored alarm is cancelled");
+  assert.equal(state.alarms.size, 1);
+  assert.deepEqual(state.toasts, ["sync_started"]);
+
+  refuse.cancel = true;
+  page.startAuto();
+  assert.equal(state.alarms.size, 2, "the alarm the system refused to cancel keeps running");
+  page.onDestroy();
 });
 
 test("page: destroying the page clears its widgets", async () => {

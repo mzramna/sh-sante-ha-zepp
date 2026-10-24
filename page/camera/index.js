@@ -24,7 +24,7 @@ Page(
       s.name = s.entityId;
       // ZML's page onDestroy calls offFile(), which drops the app-wide inbox listeners. offFile() first
       // so the listeners are not added twice on the first visit, where the app already added them.
-      const lib = getApp()._options.globalData.fileTransferLib;
+      const lib = /** @type {any} */ (getApp())._options.globalData.fileTransferLib;
       lib.offFile();
       lib.init();
       lib.onFile(this.onReceivedFile.bind(this));

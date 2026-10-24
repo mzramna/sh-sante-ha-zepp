@@ -18,7 +18,7 @@ const ROOT = path.resolve(__dirname, "..");
 // Never copied into a modern stage.
 const SKIP = new Set([
   ".git", ".github", ".claude", "build", "dist", "node_modules", "legacy",
-  "scripts", "test", "docs", "types", "i18n-src", "jsconfig.json", "build.config.js", "app.template.json",
+  "scripts", "test", "docs", "images", "types", "i18n-src", "jsconfig.json", "build.config.js", "app.template.json",
   "package.json", "package-lock.json", "README.md",
 ]);
 const SHAPES = { r: { st: "r", dw: 480 }, s: { st: "s", dw: 390 } };

@@ -531,9 +531,10 @@ test("cameraSnapshot falls back to the external address when the local one fails
     download(url, opts) {
       urls.push(url);
       const task = {};
-      queueMicrotask(() => (url.startsWith("http://") ? task.onFail({ code: 1 }) : task.onSuccess({ filePath: opts.filePath })));
+      queueMicrotask(() => (url.startsWith("http://") ? task.onFail({ code: 1 }) : task.onSuccess({ filePath: opts.filePath, statusCode: 200 })));
       return task;
     },
+    convert: async () => ({}),
     sendFile() {},
   };
   const out = await cameraSnapshot({ entity_id: "camera.a", width: 4, height: 3 }, service);
@@ -541,7 +542,7 @@ test("cameraSnapshot falls back to the external address when the local one fails
     "http://ha.local/api/camera_proxy/camera.a?width=4&height=3",
     "https://ha.example/api/camera_proxy/camera.a?width=4&height=3",
   ]);
-  assert.match(out.file, /^camera_\d+\.jpg$/);
+  assert.match(out.file, /^camera_\d+\.png$/);
 });
 
 test("cameraSnapshot reports a download that never starts", async () => {

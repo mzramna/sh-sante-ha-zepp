@@ -3,14 +3,24 @@ import { state, reset } from "../mocks/state.js";
 
 export { state, reset };
 
-let n = 0;
-// Imports the module fresh (new query string) so its Page()/AppService() call
-// registers again, and returns that definition.
+// Each module is imported once per process (a fresh query string per import would split V8 coverage).
+// Every load() returns a fresh shallow copy of the definition, with its own state.
+const modules = new Map();
 export async function load(path, kind = "page") {
-  await import(new URL(`../../${path}?v=${++n}`, import.meta.url).href);
-  const def = globalThis.__zepp[kind];
-  if (!def) throw new Error(`${path} did not register a ${kind}`);
-  return def;
+  const key = `${kind} ${path}`;
+  let def = modules.get(key);
+  if (!def) {
+    // Each kind is registered by one module only, so a module imported earlier by a direct import
+    // still leaves its definition in the registry.
+    await import(new URL(`../../${path}`, import.meta.url).href);
+    def = globalThis.__zepp[kind];
+    if (!def) throw new Error(`${path} did not register a ${kind}`);
+    if (def.state !== undefined) def.initialState = structuredClone(def.state);
+    modules.set(key, def);
+  }
+  const copy = { ...def };
+  if (def.initialState !== undefined) copy.state = structuredClone(def.initialState);
+  return copy;
 }
 
 // respond(map): map method -> value | (params) => value | Error.

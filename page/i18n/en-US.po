@@ -19,6 +19,9 @@ msgstr "Battery"
 msgid "camera_disabled"
 msgstr "Camera snapshots are disabled in this build"
 
+msgid "camera_no_file"
+msgstr "No image arrived from Home Assistant"
+
 msgid "camera_refresh"
 msgstr "Refresh"
 

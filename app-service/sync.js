@@ -47,9 +47,13 @@ function remove(key) {
   }
 }
 
+// Id of the alarm this run set; used when storage is blocked so the retry alarm
+// set before sending is still replaced instead of piling up.
+let lastAlarm = 0;
+
 // Replaces the stored alarm. A 0 id means the system refused it, so nothing is stored.
 function scheduleNext(delaySec) {
-  const prev = Number(read(KEY_ALARM, 0));
+  const prev = Number(read(KEY_ALARM, 0)) || lastAlarm;
   if (prev) {
     try {
       cancelAlarm(prev);
@@ -58,6 +62,7 @@ function scheduleNext(delaySec) {
     }
   }
   const id = setAlarm({ url: SELF, delay: delaySec, store: true });
+  lastAlarm = id || 0;
   if (id) write(KEY_ALARM, id);
   else remove(KEY_ALARM);
 }
