@@ -33,4 +33,4 @@ export function alarmPolicy(attrs = {}) {
   return { needsCode, canArm: !needsCode || attrs.code_arm_required === false, canDisarm: !needsCode };
 }
 
-export const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+export const wait = (ms) => new Promise((resolve) => setTimeout(() => resolve(), ms));

@@ -32,6 +32,7 @@ Xiaomi Band 7 needs a QR-code change before it links to the Zepp App; follow [th
 
 ```sh
 npm install
+npm install -g @zeppos/zeus-cli@1.9.3   # zeus only works as a global install (ZEUS_BIN overrides the path)
 npm run build -- --api 4.0     # one profile
 ZEPP_API=3.6 npm run build     # same, selected by environment variable
 npm run build:all              # 1.0, 3.6 and 4.0
@@ -96,7 +97,17 @@ npm test               # node:test suite: watch pages, phone side, app service, 
 npm run test:coverage  # same, with per-file coverage and minimum thresholds
 npm run check          # tsc type check against @zeppos/device-types and ZML typings
 npm run i18n           # regenerate page/i18n/*.po from i18n-src/*.json
+npm run verify         # preliminary pre-compilation: stage every API profile and check the package is complete
 ```
+
+### Pull request checks
+Every pull request runs `.github/workflows/pr.yml`:
+- **verify**: tests with coverage thresholds, type check, translations in sync with `i18n-src`, and `npm run verify` (each API profile is staged and every page, service, icon and translation `app.json` points to must exist).
+- **precompile (API 1.0 / 3.6 / 4.0)**: one real `zeus build` job per API profile (the list comes from `build.config.js` via `node scripts/build.js --list`, so a new profile gets its own build automatically); the `.zab` files are attached to the run as artifacts for testing on a watch.
+
+Pushes to `main` run the same per-profile builds (`.github/workflows/main.yml`) and publish every `.zab` in the `latest` prerelease.
+
+To block merging until they pass, add `verify` and the three `precompile (API …)` checks as **required status checks** in *Settings → Branches → branch protection rule for `main`* (or a ruleset with "Require status checks to pass").
 
 Tests run the real watch and phone code in Node: `test/helpers/setup.js` maps every `@zos/*` and `@zeppos/zml/*` import to small mocks in `test/mocks/` and provides the runtime globals (`Page`, `AppService`, `AppSideService`, `settings`, `fetch`). See `test/helpers/watch.js` and `test/helpers/phone.js`.
 
