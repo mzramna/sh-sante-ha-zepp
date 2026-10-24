@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+// Pages load once per process (openOnce), so V8 coverage counts every test here.
 import { state, reset, respond, openOnce as open, texts, findText, click, clickable, flush } from "./helpers/watch.js";
 import { FEATURES } from "../config/build.js";
 import { COLOR, DOMAINS } from "../utils/theme.js";

@@ -1,7 +1,7 @@
 // scripts/build.js: flag parsing, variant resolution, app.json profiles and the staging of
 // build/api-<level>. The CLI entry is run in-process (for coverage) with execFileSync mocked,
 // and once as a real child process for the exit codes.
-import { test, mock, beforeEach, afterEach } from "node:test";
+import { test, mock, beforeEach, afterEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import Module from "node:module";
@@ -33,9 +33,15 @@ function withEnv(name, value, fn) {
   }
 }
 
+const tempDirs = [];
+after(() => {
+  for (const dir of tempDirs) fs.rmSync(dir, { recursive: true, force: true });
+});
+
 // Fresh temp directory with the given relative files (content = the file name).
 function tempTree(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "build-variants-"));
+  tempDirs.push(dir);
   for (const rel of files) {
     fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
     fs.writeFileSync(path.join(dir, rel), rel);
