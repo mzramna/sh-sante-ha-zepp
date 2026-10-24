@@ -120,7 +120,7 @@ test("climate: the temperature ring sends one set_temperature after the debounce
 
 test("climate: the temperature ring clamps to the HA max", async () => {
   reset();
-  await climatePage({ ...CLIMATE, attributes: { ...CLIMATE.attributes, temperature: 30 } });
+  await climatePage({ ...CLIMATE, attributes: { ...CLIMATE.attributes, temperature: 29.8 } });
   await click(button("+"));
   assert.ok(label("30°"));
   await sleep(700);
@@ -130,7 +130,7 @@ test("climate: the temperature ring clamps to the HA max", async () => {
 
 test("climate: without HA's range the ring uses 7-35 and clamps to 7", async () => {
   reset();
-  await climatePage({ ...CLIMATE, attributes: { temperature: 7 } });
+  await climatePage({ ...CLIMATE, attributes: { temperature: 7.2 } });
   await click(button(MINUS));
   assert.ok(label("7°"));
   await sleep(700);
@@ -154,9 +154,7 @@ test("climate: destroying the page drops a pending temperature change", async ()
   assert.equal(sent("CALL_SERVICE").length, 0);
 });
 
-test("bug: destroying the page during a mode change stops the reload", {
-  todo: "bug: load() sends GET_ENTITY before checking alive, so a command answered after onDestroy still hits HA (also cover/fan/lock/vacuum/alarm)",
-}, async () => {
+test("climate: destroying the page during a mode change stops the reload", async () => {
   reset();
   const page = await climatePage();
   await click(button("state_cool"));
@@ -187,15 +185,13 @@ test("climate: a failed reply that arrives after onDestroy is not drawn", async 
   assert.equal(findText("Error: late"), undefined);
 });
 
-test("bug: the climate ring is not redrawn from the entity while the user is still turning it", {
-  todo: "bug: climate/cover/fan redraw the whole ring on every reload, so a reload from an earlier send resets a value the user is still setting (light and media guard this)",
-}, async () => {
+test("climate: a reload does not redraw the ring while the user is still turning it", async () => {
   reset();
   await climatePage();
-  await click(button("+")); // 21.5, sent after 600 ms
-  await sleep(650);
-  await click(button("+")); // 22, restarts the debounce
-  await sleep(1050); // the reload from the first send has run; HA still reports 21
+  await click(button("+")); // 21.5, sent after 600 ms; its reload is due at ~1600 ms
+  await sleep(1200);
+  await click(button("+")); // 22, pending until ~1800 ms
+  await sleep(500); // the reload lands at ~1600 ms, while 22 is pending; HA still reports 21
   assert.ok(label("22°"), "the ring keeps the user's value");
 });
 
@@ -225,7 +221,7 @@ test("cover: typical attributes draw open/stop/close, the position ring and the 
   assert.ok(findText("Garage"));
   assert.deepEqual(buttons(), ["open", "stop", "close"]);
   assert.ok(findText("70%"));
-  assert.equal(label("open").props.y, 284, "status sits under the ring");
+  assert.equal(label("open").props.y, 296, "status sits under the ring");
 });
 
 test("cover: buttons send open_cover, stop_cover and close_cover", async () => {
@@ -255,7 +251,7 @@ test("cover: each control needs its supported_features bit", async () => {
     await coverPage({ ...COVER, attributes: { current_position: 70, supported_features: features } });
     assert.deepEqual(buttons(), expected, `supported_features ${features}`);
     assert.equal(findText("70%") !== undefined, ring, `ring for ${features}`);
-    assert.equal(label("open").props.y, ring ? 284 : 200, `status line for ${features}`);
+    assert.equal(label("open").props.y, ring ? 296 : 216, `status line for ${features}`);
   }
 });
 
@@ -320,15 +316,13 @@ test("cover: a failed reply that arrives after onDestroy is not shown", async ()
   assert.equal(findText("Error: late"), undefined);
 });
 
-test("bug: the cover ring is not redrawn from the entity while the user is still turning it", {
-  todo: "bug: climate/cover/fan redraw the whole ring on every reload, so a reload from an earlier send resets a value the user is still setting (light and media guard this)",
-}, async () => {
+test("cover: a reload does not redraw the ring while the user is still turning it", async () => {
   reset();
   await coverPage();
-  await click(button("+")); // 80, sent after 600 ms
-  await sleep(650);
-  await click(button("+")); // 90, restarts the debounce
-  await sleep(1050);
+  await click(button("+")); // 80, sent after 600 ms; its reload is due at ~1600 ms
+  await sleep(1200);
+  await click(button("+")); // 90, pending until ~1800 ms
+  await sleep(500); // the reload lands while 90 is pending; HA still reports 70
   assert.ok(findText("90%"), "the ring keeps the user's value");
 });
 
@@ -360,7 +354,7 @@ test("fan: typical attributes draw power and oscillate, the speed ring and the s
   assert.equal(button("power").props.x, 116);
   assert.equal(button("oscillate").props.x, 244);
   assert.ok(findText("40%"));
-  assert.equal(label("on").props.y, 284);
+  assert.equal(label("on").props.y, 296);
 });
 
 test("fan: power sends toggle and oscillate flips the oscillating flag", async () => {
@@ -383,7 +377,7 @@ test("fan: an off fan without oscillation or speed shows only a grey, centred po
   assert.equal(button("power").props.normal_color, COLOR.card);
   assert.equal(button("power").props.x, 180);
   assert.equal(findText("%"), undefined, "no speed ring");
-  assert.equal(label("off").props.y, 200);
+  assert.equal(label("off").props.y, 216);
 });
 
 test("fan: the speed ring sends one set_percentage after the debounce, with the entity's step", async () => {
@@ -448,16 +442,14 @@ test("fan: a failed reply that arrives after onDestroy is not shown", async () =
   assert.equal(findText("Error: late"), undefined);
 });
 
-test("bug: the fan ring is not redrawn from the entity while the user is still turning it", {
-  todo: "bug: climate/cover/fan redraw the whole ring on every reload, so a reload from an earlier send resets a value the user is still setting (light and media guard this)",
-}, async () => {
+test("fan: a reload does not redraw the ring while the user is still turning it", async () => {
   reset();
   await fanPage();
-  await click(button("+")); // 50, sent after 600 ms
-  await sleep(650);
-  await click(button("+")); // 60, restarts the debounce
-  await sleep(1050);
-  assert.ok(findText("60%"), "the ring keeps the user's value");
+  await click(button("+")); // 60, sent after 600 ms; its reload is due at ~1600 ms
+  await sleep(1200);
+  await click(button("+")); // 80, pending until ~1800 ms
+  await sleep(500); // the reload lands while 80 is pending; HA still reports 40
+  assert.ok(findText("80%"), "the ring keeps the user's value");
 });
 
 // ---------- lock ----------
@@ -515,7 +507,7 @@ test("lock: locking an unlocked door takes one tap", async () => {
 test("lock: the confirm window closes after 3 s, and a later tap arms again", async (t) => {
   reset();
   await lockPage();
-  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   press(button("unlock_action"));
   assert.ok(button("tap_again_to_confirm"));
   t.mock.timers.tick(2999);
@@ -528,27 +520,28 @@ test("lock: the confirm window closes after 3 s, and a later tap arms again", as
   assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
-test("bug: a tap at exactly 3 s still confirms after the prompt has reset", {
-  todo: "bug: confirm window accepts a tap at exactly 3000 ms (<=) while the timer that resets the prompt also fires at 3000 ms",
-}, async (t) => {
+test("lock: a tap at exactly 3 s is a new first tap, not a confirmation", async (t) => {
   reset();
   await lockPage();
-  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   press(button("unlock_action"));
   t.mock.timers.tick(3000);
   assert.ok(button("unlock_action"), "the prompt has reset");
   press(button("unlock_action"));
   assert.equal(sent("CALL_SERVICE").length, 0, "one tap must not unlock");
+  assert.ok(button("tap_again_to_confirm"));
 });
 
 test("lock: destroying the page cancels the confirm timer", async (t) => {
   reset();
   const page = await lockPage();
-  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   press(button("unlock_action"));
+  const drawn = state.deleted.length;
   page.onDestroy();
   t.mock.timers.tick(3000);
-  assert.equal(page.state.armed, true, "the timer that would disarm it is gone");
+  assert.equal(state.deleted.length, drawn, "no redraw after destroy");
+  assert.equal(page.state.timers.size, 0);
 });
 
 test("lock: a failed command toasts the error", async () => {
@@ -594,8 +587,36 @@ test("vacuum: typical attributes draw state, battery and a 2x2 grid of commands"
   assert.deepEqual(buttons(), ["start", "pause", "dock", "locate"]);
   assert.deepEqual(
     buttons().map((_, i) => [button(["start", "pause", "dock", "locate"][i]).props.x, button(["start", "pause", "dock", "locate"][i]).props.y]),
-    [[72, 152], [248, 152], [72, 240], [248, 240]]
+    [[72, 168], [248, 168], [72, 256], [248, 256]]
   );
+});
+
+test("vacuum: each command is shown only when supported_features has its bit", async () => {
+  const cases = [
+    [8192, ["start"]],
+    [4 | 16 | 512 | 8192, ["start", "pause", "dock", "locate"]],
+    [16, ["dock"]],
+    [512 | 4, ["pause", "locate"]],
+    [0, []],
+  ];
+  for (const [features, expected] of cases) {
+    reset();
+    await vacPage({ ...VAC, attributes: { supported_features: features } });
+    assert.deepEqual(buttons(), expected, `supported_features ${features}`);
+  }
+});
+
+test("vacuum: the shown commands fill the grid from the top left", async () => {
+  reset();
+  await vacPage({ ...VAC, attributes: { supported_features: 4 | 512 } });
+  assert.deepEqual([button("pause").props.x, button("pause").props.y], [72, 168]);
+  assert.deepEqual([button("locate").props.x, button("locate").props.y], [248, 168]);
+});
+
+test("vacuum: a missing supported_features (old integration) shows every command", async () => {
+  reset();
+  await vacPage({ ...VAC, attributes: { battery_level: 50 } });
+  assert.deepEqual(buttons(), ["start", "pause", "dock", "locate"]);
 });
 
 test("vacuum: each button sends its vacuum service", async () => {
@@ -638,9 +659,7 @@ test("vacuum: a command reloads the entity 1 s after it succeeds", async () => {
   assert.equal(sent("GET_ENTITY").length, 2);
 });
 
-test("bug: vacuum destroyed during a command stops the reload", {
-  todo: "bug: load() sends GET_ENTITY before checking alive, so a command answered after onDestroy still hits HA",
-}, async () => {
+test("vacuum: destroyed during a command stops the reload", async () => {
   reset();
   const page = await vacPage();
   await click(button("locate"));
@@ -683,7 +702,7 @@ test("alarm: without a code, arm home, arm away and disarm are stacked and colou
   assert.deepEqual(buttons(), ["arm_home", "arm_away", "disarm"]);
   assert.deepEqual(
     ["arm_home", "arm_away", "disarm"].map((t) => [button(t).props.x, button(t).props.y]),
-    [[100, 152], [100, 228], [100, 304]]
+    [[100, 168], [100, 244], [100, 320]]
   );
   assert.equal(button("arm_home").props.normal_color, DOMAINS.alarm_control_panel.color);
   assert.equal(button("disarm").props.normal_color, COLOR.card);
@@ -732,7 +751,7 @@ test("alarm: a code required to arm hides every button", async () => {
 test("alarm: the disarm confirm window closes after 3 s, and a later tap re-arms", async (t) => {
   reset();
   await alarmPage();
-  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   press(button("disarm"));
   t.mock.timers.tick(3001);
   assert.ok(button("disarm"), "back to the plain label");
@@ -742,26 +761,27 @@ test("alarm: the disarm confirm window closes after 3 s, and a later tap re-arms
   assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
-test("bug: an alarm tap at exactly 3 s still disarms after the prompt has reset", {
-  todo: "bug: confirm window accepts a tap at exactly 3000 ms (<=) while the timer that resets the prompt also fires at 3000 ms",
-}, async (t) => {
+test("alarm: a tap at exactly 3 s is a new first tap, not a disarm", async (t) => {
   reset();
   await alarmPage();
-  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   press(button("disarm"));
   t.mock.timers.tick(3000);
   press(button("disarm"));
   assert.equal(sent("CALL_SERVICE").length, 0, "one tap must not disarm");
+  assert.ok(button("tap_again_to_confirm"));
 });
 
 test("alarm: destroying the page cancels the confirm timer", async (t) => {
   reset();
   const page = await alarmPage();
-  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   press(button("disarm"));
+  const drawn = state.deleted.length;
   page.onDestroy();
   t.mock.timers.tick(3000);
-  assert.equal(page.state.armed, true, "the timer that would disarm it is gone");
+  assert.equal(state.deleted.length, drawn, "no redraw after destroy");
+  assert.equal(page.state.timers.size, 0);
 });
 
 test("alarm: a failed command toasts the error", async () => {
@@ -795,7 +815,7 @@ test("cover: an entity without attributes draws the status line only", async () 
   reset();
   await coverPage({ entity_id: COVER_ID, name: "Garage", state: "open" });
   assert.deepEqual(buttons(), []);
-  assert.equal(label("open").props.y, 200);
+  assert.equal(label("open").props.y, 216);
 });
 
 test("cover: a position ring without a reported position starts at 0", async () => {

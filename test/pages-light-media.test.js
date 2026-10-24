@@ -35,8 +35,6 @@ const button = (text) => {
 const buttons = () =>
   state.widgets.filter((w) => w.type === "BUTTON" && w.props.text !== "+" && w.props.text !== MINUS).map((w) => w.props.text);
 const sent = (method) => state.requests.filter((r) => r.method === method);
-// What the page hands to this.call(): the ZML call channel keeps only the first argument.
-const callChannel = () => state.calls;
 const deferred = () => {
   let resolve;
   const promise = new Promise((r) => (resolve = r));
@@ -59,7 +57,7 @@ test("light: a failed entity load shows the error and no controls", async () => 
   reset();
   respond({ GET_ENTITY: new Error("offline") });
   await openPage("page/light/index.js", { entity_id: LIGHT_ID });
-  assert.deepEqual(texts(), ["error"]);
+  assert.deepEqual(texts(), ["Error: offline"]);
   assert.deepEqual(buttons(), []);
 });
 
@@ -73,22 +71,20 @@ test("light: typical attributes draw title, power, effect and brightness ring", 
   assert.ok(findText("50%"));
 });
 
-test("light: power button hands light.toggle to the call channel", async () => {
-  reset();
-  await lightPage();
-  await click(button("on"));
-  assert.deepEqual(callChannel(), ["toggle"]);
-});
-
-test("bug: power button does not send CALL_SERVICE light.toggle", {
-  todo: "bug: light page's call() is replaced by ZML's messaging call(), so controls never send CALL_SERVICE (phone has no onCall handler either)",
-}, async () => {
+test("light: power button sends light.toggle as CALL_SERVICE", async () => {
   reset();
   await lightPage();
   await click(button("on"));
   assert.deepEqual(sent("CALL_SERVICE").map((r) => r.params), [
     { domain: "light", service: "toggle", entity_id: LIGHT_ID, data: {} },
   ]);
+});
+
+test("light: tapping the effect button opens the effect picker for this light", async () => {
+  reset();
+  await lightPage();
+  await click(button("rainbow"));
+  assert.deepEqual(state.routes, [{ type: "push", url: "page/light/effect", params: JSON.stringify({ entity_id: LIGHT_ID }) }]);
 });
 
 test("light: an off light has a grey power button, centred, and no effect or ring", async () => {
@@ -106,14 +102,12 @@ test("light: brightness ring sends one change after the debounce, none before", 
   await click(button("+"));
   await click(button(MINUS));
   await sleep(300);
-  assert.equal(callChannel().length, 0, "nothing before the debounce");
+  assert.equal(sent("CALL_SERVICE").length, 0, "nothing before the debounce");
   await sleep(500);
-  assert.equal(callChannel().length, 1, "one send for the final value");
+  assert.equal(sent("CALL_SERVICE").length, 1, "one send for the final value");
 });
 
-test("bug: brightness ring sends brightness_pct in CALL_SERVICE turn_on", {
-  todo: "bug: brightness value is lost: this.call('turn_on', {brightness_pct}) only forwards 'turn_on' to the call channel",
-}, async () => {
+test("light: brightness ring sends the final brightness_pct in CALL_SERVICE turn_on", async () => {
   reset();
   await lightPage();
   await click(button("+"));
@@ -135,7 +129,7 @@ test("light: an entity reload does not redraw the brightness ring while it is be
   assert.ok(findText("60%"), "the ring keeps the value the user is setting");
   assert.equal(findText("50%"), undefined);
   await sleep(700);
-  assert.equal(callChannel().length, 1);
+  assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
 test("light: destroying the page drops a pending brightness change", async () => {
@@ -144,7 +138,7 @@ test("light: destroying the page drops a pending brightness change", async () =>
   await click(button("+"));
   page.onDestroy();
   await sleep(700);
-  assert.equal(callChannel().length, 0);
+  assert.equal(sent("CALL_SERVICE").length, 0);
 });
 
 test("light: onResume reloads the entity once it has been loaded", async () => {
@@ -156,18 +150,16 @@ test("light: onResume reloads the entity once it has been loaded", async () => {
   assert.equal(sent("GET_ENTITY").length, before + 1);
 });
 
-test("light: onResume does nothing when the first load failed", async () => {
+test("light: onResume retries the entity after a failed first load", async () => {
   reset();
   respond({ GET_ENTITY: new Error("offline") });
   const page = await openPage("page/light/index.js", { entity_id: LIGHT_ID });
   page.onResume();
   await flush();
-  assert.equal(sent("GET_ENTITY").length, 1);
+  assert.equal(sent("GET_ENTITY").length, 2);
 });
 
-test("bug: a successful command reloads the entity 1 s later", {
-  todo: "bug: light page never reloads after a command, because call() is replaced and its refresh timer is never set",
-}, async () => {
+test("light: a successful command reloads the entity 1 s later", async () => {
   reset();
   await lightPage();
   await click(button("on"));
@@ -175,18 +167,14 @@ test("bug: a successful command reloads the entity 1 s later", {
   assert.equal(sent("GET_ENTITY").length, 2);
 });
 
-test("bug: a failed command shows an error toast", {
-  todo: "bug: light page never reports a failed command, because call() is replaced and its error toast is unreachable",
-}, async () => {
+test("light: a failed command shows the error toast", async () => {
   reset();
   await lightPage(LIGHT, { CALL_SERVICE: new Error("boom") });
   await click(button("on"));
-  assert.deepEqual(state.toasts, ["error"]);
+  assert.deepEqual(state.toasts, ["Error: boom"]);
 });
 
-test("bug: an entity reply that arrives after onDestroy still draws the page", {
-  todo: "bug: light page has no alive guard, so a GET_ENTITY reply after onDestroy draws widgets on the destroyed page",
-}, async () => {
+test("light: an entity reply that arrives after onDestroy draws nothing", async () => {
   reset();
   const reply = deferred();
   respond({ GET_ENTITY: () => reply.promise });
@@ -219,14 +207,14 @@ test("effect picker: one row per effect with the current one highlighted", async
   assert.equal(findText("rainbow").props.color, COLOR.text);
 });
 
-test("effect picker: tapping a label applies the effect, toasts it and goes back", async () => {
+test("effect picker: tapping a label applies the effect, toasts and goes back", async () => {
   reset();
   await effectPage();
   await click(findText("candle"));
   assert.deepEqual(sent("CALL_SERVICE").map((r) => r.params), [
     { domain: "light", service: "turn_on", entity_id: LIGHT_ID, data: { effect: "candle" } },
   ]);
-  assert.deepEqual(state.toasts, ["candle"]);
+  assert.deepEqual(state.toasts, ["done"]);
   assert.deepEqual(state.routes, [{ type: "back" }]);
 });
 
@@ -238,24 +226,33 @@ test("effect picker: tapping the row background also applies the effect", async 
   assert.deepEqual(state.routes, [{ type: "back" }]);
 });
 
-test("effect picker: a failed apply shows an error and stays on the page", async () => {
+test("effect picker: a failed apply shows the error and stays on the list", async () => {
   reset();
   await effectPage(EFFECTS, { CALL_SERVICE: new Error("nope") });
   await click(findText("candle"));
-  assert.deepEqual(state.toasts, ["error"]);
+  assert.deepEqual(state.toasts, ["Error: nope"]);
   assert.deepEqual(state.routes, []);
 });
 
 test("effect picker: a failed load shows the error", async () => {
   reset();
   await effectPage(new Error("offline"));
-  assert.deepEqual(texts(), ["error"]);
+  assert.deepEqual(texts(), ["Error: offline"]);
 });
 
 test("effect picker: an entity without effects draws only the title", async () => {
   reset();
   await effectPage({ ...EFFECTS, attributes: {} });
   assert.deepEqual(texts(), ["effect"]);
+});
+
+test("effect picker: draws at most 40 effects", async () => {
+  reset();
+  const many = Array.from({ length: 45 }, (_, i) => `fx${i}`);
+  await effectPage({ ...EFFECTS, attributes: { effect_list: many } });
+  assert.equal(state.widgets.filter((w) => w.type === "FILL_RECT").length, 40);
+  assert.ok(findText("fx39"));
+  assert.equal(findText("fx40"), undefined);
 });
 
 // ---------- media player ----------
@@ -279,7 +276,7 @@ test("media: a failed entity load shows the error", async () => {
   reset();
   respond({ GET_ENTITY: new Error("offline") });
   await openPage("page/media_player/index.js", { entity_id: MEDIA_ID });
-  assert.deepEqual(texts(), ["error"]);
+  assert.deepEqual(texts(), ["Error: offline"]);
 });
 
 test("media: typical attributes draw title, track, transport buttons and volume ring", async () => {
@@ -326,25 +323,19 @@ test("media: no volume ring without the VOLUME_SET bit or a numeric level", asyn
   assert.equal(findText("%"), undefined);
 });
 
-test("media: transport and power buttons hand their services to the call channel", async () => {
+test("media: transport and power buttons send their media_player services as CALL_SERVICE", async () => {
   reset();
   await playerPage();
   await click(button("prev"));
   await click(button("pause"));
   await click(button("next"));
   await click(button("power"));
-  assert.deepEqual(callChannel(), ["media_previous_track", "media_play_pause", "media_next_track", "toggle"]);
-});
-
-test("bug: transport and power buttons send CALL_SERVICE media_player services", {
-  todo: "bug: media page's call() is replaced by ZML's messaging call(), so transport and power buttons never send CALL_SERVICE",
-}, async () => {
-  reset();
-  await playerPage();
-  await click(button("prev"));
-  assert.deepEqual(sent("CALL_SERVICE")[0].params, {
-    domain: "media_player", service: "media_previous_track", entity_id: MEDIA_ID, data: {},
-  });
+  assert.deepEqual(sent("CALL_SERVICE").map((r) => r.params), [
+    { domain: "media_player", service: "media_previous_track", entity_id: MEDIA_ID, data: {} },
+    { domain: "media_player", service: "media_play_pause", entity_id: MEDIA_ID, data: {} },
+    { domain: "media_player", service: "media_next_track", entity_id: MEDIA_ID, data: {} },
+    { domain: "media_player", service: "toggle", entity_id: MEDIA_ID, data: {} },
+  ]);
 });
 
 test("media: volume ring sends one change after the debounce, none before", async () => {
@@ -353,14 +344,12 @@ test("media: volume ring sends one change after the debounce, none before", asyn
   await click(button("+"));
   await click(button("+"));
   await sleep(300);
-  assert.equal(callChannel().length, 0, "nothing before the debounce");
+  assert.equal(sent("CALL_SERVICE").length, 0, "nothing before the debounce");
   await sleep(500);
-  assert.equal(callChannel().length, 1, "one send for the final level");
+  assert.equal(sent("CALL_SERVICE").length, 1, "one send for the final level");
 });
 
-test("bug: volume ring sends volume_set with the final level in CALL_SERVICE", {
-  todo: "bug: volume level is lost: this.call('volume_set', {volume_level}) only forwards 'volume_set' to the call channel",
-}, async () => {
+test("media: volume ring sends volume_set with the final level in CALL_SERVICE", async () => {
   reset();
   await playerPage();
   await click(button("+"));
@@ -380,7 +369,7 @@ test("media: an entity reload does not redraw the volume ring while it is being 
   await flush();
   assert.ok(findText("50%"), "the ring keeps the value the user is setting");
   await sleep(700);
-  assert.equal(callChannel().length, 1);
+  assert.equal(sent("CALL_SERVICE").length, 1);
 });
 
 test("media: polls the entity every 10 s and stops polling on destroy", async (t) => {
@@ -407,12 +396,10 @@ test("media: destroying the page drops a pending volume change", async () => {
   await click(button("+"));
   page.onDestroy();
   await sleep(700);
-  assert.equal(callChannel().length, 0);
+  assert.equal(sent("CALL_SERVICE").length, 0);
 });
 
-test("bug: a successful command reloads the entity 1 s later", {
-  todo: "bug: media page never reloads after a command, because call() is replaced and its refresh timer is never set",
-}, async () => {
+test("media: a successful command reloads the entity 1 s later", async () => {
   reset();
   await playerPage();
   await click(button("next"));
@@ -420,18 +407,14 @@ test("bug: a successful command reloads the entity 1 s later", {
   assert.equal(sent("GET_ENTITY").length, 2);
 });
 
-test("bug: a failed command shows an error toast", {
-  todo: "bug: media page never reports a failed command, because call() is replaced and its error toast is unreachable",
-}, async () => {
+test("media: a failed command shows the error toast", async () => {
   reset();
   await playerPage(PLAYER, { CALL_SERVICE: new Error("nope") });
   await click(button("prev"));
-  assert.deepEqual(state.toasts, ["error"]);
+  assert.deepEqual(state.toasts, ["Error: nope"]);
 });
 
-test("bug: an entity reply that arrives after onDestroy still draws the page", {
-  todo: "bug: media page has no alive guard, so a GET_ENTITY reply (or poll) after onDestroy draws widgets on the destroyed page",
-}, async () => {
+test("media: an entity reply that arrives after onDestroy draws nothing", async () => {
   reset();
   const reply = deferred();
   respond({ GET_ENTITY: () => reply.promise });

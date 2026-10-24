@@ -10,7 +10,5 @@ export const MEDIA_FEATURE = {
   TURN_OFF: 256,
 };
 
-export const hasFeature = (supported, bit) => ((supported || 0) & bit) !== 0;
-
 // HA 2022.5+ no longer reports brightness in supported_features; any mode but "onoff" implies it.
 export const supportsBrightness = (colorModes) => (colorModes || []).some((m) => m !== "onoff");

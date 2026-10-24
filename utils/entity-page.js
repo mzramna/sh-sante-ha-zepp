@@ -14,7 +14,7 @@ export const DEBOUNCE_MS = 600;
 export const CONFIRM_MS = 3000;
 
 /**
- * @param {{ domain: string, draw: (entity: any, list: any[]) => void, pollMs?: number }} options
+ * @param {{ domain: string, draw: (this: any, entity: any, list: any[]) => void, pollMs?: number, [key: string]: any }} options
  *   draw: called with `this` = the page; use this.act / this.debounced / this.confirm.
  *   pollMs: reload period while the page is open (e.g. media position/state).
  */
@@ -89,20 +89,24 @@ export function entityPage({ domain, draw, pollMs = 0, ...rest }) {
       draw.call(this, s.entity, s.list);
     },
 
-    // Runs a service on this entity, then reloads it. svcDomain defaults to the page domain.
+    // Runs a service on this entity, then reloads it. Resolves true when HA accepted it.
     act(service, data = {}, svcDomain = domain) {
       const s = this.state;
-      if (!s.alive) return Promise.resolve();
+      if (!s.alive) return Promise.resolve(false);
       return this.request({
         method: METHOD.CALL_SERVICE,
         params: { domain: svcDomain, service, entity_id: s.entity_id, data },
       }).then(
         () => {
-          if (!s.alive) return;
+          if (!s.alive) return false;
           toast(getText("done"));
           this.later(RELOAD_AFTER_ACTION_MS, () => this.load());
+          return true;
         },
-        (e) => s.alive && toast(String(e))
+        (e) => {
+          if (s.alive) toast(String(e));
+          return false;
+        }
       );
     },
 
