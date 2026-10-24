@@ -1,5 +1,5 @@
 // Phone dispatcher (app-side/index.js): method routing, errors, settings-button actions.
-import { test, beforeEach } from "node:test";
+import { test, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { load, reset, flush } from "./helpers/watch.js";
 import { installSettings, installFetch } from "./helpers/phone.js";
@@ -48,11 +48,15 @@ function cameraService() {
   };
 }
 
-beforeEach(async () => {
+// Loaded once: each import is a new module instance, and coverage only counts some of them.
+before(async () => {
+  def = await load("app-side/index.js", "side");
+});
+
+beforeEach(() => {
   reset();
   store = installSettings(BASE);
   routes([]);
-  def = await load("app-side/index.js", "side");
 });
 
 test("every METHOD in shared/protocol.js has a handler (never 'Unknown method')", async () => {
@@ -137,6 +141,14 @@ test("an unknown method is answered with a single error argument", async () => {
   const replies = await request({ method: "NOPE", params: {} });
   assert.deepEqual(replies, [["Unknown method NOPE"]]);
   assert.equal(fetchCalls.length, 0);
+});
+
+test("the lifecycle hooks are no-ops", () => {
+  assert.doesNotThrow(() => {
+    def.onInit();
+    def.onRun();
+    def.onDestroy();
+  });
 });
 
 test("a missing method is reported as unknown", async () => {

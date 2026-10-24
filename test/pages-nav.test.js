@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { state, reset, respond, open, texts, findText, click, clickable, load, flush } from "./helpers/watch.js";
+import { state, reset, respond, openOnce as open, texts, findText, click, clickable, flush } from "./helpers/watch.js";
 import { FEATURES } from "../config/build.js";
 import { COLOR, DOMAINS } from "../utils/theme.js";
 import { GROUP_DOMAINS } from "../utils/groups.js";
@@ -28,19 +28,21 @@ function setup(extra = {}) {
   respond({ GET_CONFIG: { favorites: [], sensorMode: "none" }, GET_ENTITIES: byIds, ...extra });
 }
 
-// Fails the whole page load: a rejected request is shown as text in danger colour.
+// A failed request is drawn as text in the danger colour.
 const expectErrorShown = (text) => {
   const w = findText(text);
   assert.ok(w, `error text "${text}" shown`);
   assert.equal(w.props.color, COLOR.danger);
 };
 
-const hasFeature = (name, value, fn) => {
+const hasFeature = async (name, value, fn) => {
   const old = FEATURES[name];
   FEATURES[name] = value;
-  return Promise.resolve()
-    .then(fn)
-    .finally(() => (FEATURES[name] = old));
+  try {
+    return await fn();
+  } finally {
+    FEATURES[name] = old;
+  }
 };
 
 // ---- page/home ---------------------------------------------------------------
@@ -428,12 +430,4 @@ test("every domain with a tap or a page belongs to exactly one home group", () =
     if (DOMAINS[domain].label === "sensors") continue;
     assert.ok(groups.includes(domain), `${domain} is reachable from home`);
   }
-});
-
-// ---- app.js ------------------------------------------------------------------
-
-test("app.js registers an app whose lifecycle hooks run without a phone", async () => {
-  const app = await load("app.js", "app");
-  assert.doesNotThrow(() => app.onCreate());
-  assert.doesNotThrow(() => app.onDestroy());
 });

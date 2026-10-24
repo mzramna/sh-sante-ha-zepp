@@ -27,11 +27,32 @@ export function respond(map) {
 // Builds a page: onInit(params) then build(), then waits for pending promises.
 export async function open(path, params) {
   const page = await load(path, "page");
-  page.state = structuredClone(page.state || {});
+  return start(page, params);
+}
+
+async function start(page, params) {
+  page.state = structuredClone(page.initialState || page.state || {});
   page.onInit && page.onInit(params === undefined ? undefined : typeof params === "string" ? params : JSON.stringify(params));
   page.build && page.build();
   await flush();
   return page;
+}
+
+// Like open(), but imports the page once per process and resets its state on every call.
+// open() imports a fresh copy each time, and V8 coverage keeps only one copy per URL, so use
+// this in files whose coverage should count every test.
+const once = new Map();
+export async function openOnce(path, params) {
+  let page = once.get(path);
+  if (!page) {
+    globalThis.__zepp.page = null;
+    await import(new URL(`../../${path}`, import.meta.url).href);
+    page = globalThis.__zepp.page;
+    if (!page) throw new Error(`${path} did not register a page (imported before by open()?)`);
+    page.initialState = structuredClone(page.state || {});
+    once.set(path, page);
+  }
+  return start(page, params);
 }
 
 export const flush = () => new Promise((r) => setTimeout(r, 0));

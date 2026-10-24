@@ -64,7 +64,7 @@ function scheduleNext(delaySec) {
 
 // The ZML messaging object app.js creates; pages use the same one.
 async function sendToPhone() {
-  const messaging = getApp()._options.globalData.messaging;
+  const messaging = /** @type {any} */ (getApp())._options.globalData.messaging;
   const payload = buildPayload(collectReadings());
   const res = await messaging.request({ method: METHOD.SYNC_SENSORS, params: { payload } }, { timeout: 15000 });
   return { ok: true, interval: res.interval };
@@ -73,6 +73,7 @@ async function sendToPhone() {
 export async function runSync() {
   // A retry is set before sending, so a service killed mid-sync still runs again.
   scheduleNext(RETRY_SEC);
+  /** @type {{ ok: boolean, interval?: number, error?: string }} */
   let result;
   try {
     result = await sendToPhone();

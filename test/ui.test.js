@@ -7,7 +7,7 @@ import {
   createTracked, clear, title, message, loading, entityCard, formatState, actionButton, valueRing, toast,
 } from "../utils/ui.js";
 import { FEATURES } from "../config/build.js";
-import { COLOR, FONT, MARGIN, W, TOP, CX, DOMAINS, domainOf, domainMeta } from "../utils/theme.js";
+import { COLOR, FONT, W, TOP, CX, DOMAINS, domainOf, domainMeta } from "../utils/theme.js";
 
 const ent = (entity_id, state, extra = {}) => ({ entity_id, name: `name of ${entity_id}`, state, ...extra });
 const withFeature = (name, value, fn) => {
