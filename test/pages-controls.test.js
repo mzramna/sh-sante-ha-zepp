@@ -1,7 +1,7 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { state, reset, respond, texts, findText, click, flush, sleep } from "./helpers/watch.js";
-import { COLOR, CX, DOMAINS } from "../utils/theme.js";
+import { COLOR, DOMAINS } from "../utils/theme.js";
 
 // Each page module is imported once per file (so coverage counts it). A test opens a shallow copy
 // of the definition with a fresh state, and every page a test opens is destroyed afterwards.
