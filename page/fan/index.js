@@ -10,7 +10,6 @@ const { color } = DOMAINS.fan;
 Page(
   entityPage({
     domain: "fan",
-    /** @this {any} */
     draw(e, list) {
       const a = e.attributes || {};
       const isOn = e.state === "on";

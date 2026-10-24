@@ -13,7 +13,6 @@ Page(
   entityPage({
     domain: "media_player",
     pollMs: 10000,
-    /** @this {any} */
     draw(entity, w) {
       const a = entity.attributes;
       const f = a.supported_features;

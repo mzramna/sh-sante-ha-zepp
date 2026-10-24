@@ -10,7 +10,6 @@ const { color } = DOMAINS.cover;
 Page(
   entityPage({
     domain: "cover",
-    /** @this {any} */
     draw(e, list) {
       const a = e.attributes || {};
       const f = a.supported_features;

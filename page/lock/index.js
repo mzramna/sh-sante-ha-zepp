@@ -7,7 +7,6 @@ import { entityPage } from "../../utils/entity-page.js";
 Page(
   entityPage({
     domain: "lock",
-    /** @this {any} */
     draw(e, list) {
       const locked = e.state === "locked";
       const armed = locked && this.isArmed("unlock");

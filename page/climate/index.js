@@ -10,7 +10,6 @@ const { color } = DOMAINS.climate;
 Page(
   entityPage({
     domain: "climate",
-    /** @this {any} */
     draw(e, list) {
       const a = e.attributes || {};
       title(list, e.name);

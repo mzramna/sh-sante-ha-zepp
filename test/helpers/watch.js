@@ -25,10 +25,22 @@ export function respond(map) {
 }
 
 // Builds a page: onInit(params) then build(), then waits for pending promises.
+// Each page file is imported once per process (a second import would register a second copy and
+// split V8 coverage). Every open() gets a fresh shallow copy of the definition with its own state.
+const pages = new Map();
 export async function open(path, params) {
-  const page = await load(path, "page");
-  return start(page, params);
+  let def = pages.get(path);
+  if (!def) {
+    globalThis.__zepp.page = null;
+    await import(new URL(`../../${path}`, import.meta.url).href);
+    def = globalThis.__zepp.page;
+    if (!def) throw new Error(`${path} did not register a page (imported before by a direct import?)`);
+    def.initialState = structuredClone(def.state || {});
+    pages.set(path, def);
+  }
+  return start({ ...def }, params);
 }
+export const openOnce = open;
 
 async function start(page, params) {
   page.state = structuredClone(page.initialState || page.state || {});
@@ -36,23 +48,6 @@ async function start(page, params) {
   page.build && page.build();
   await flush();
   return page;
-}
-
-// Like open(), but imports the page once per process and resets its state on every call.
-// open() imports a fresh copy each time, and V8 coverage keeps only one copy per URL, so use
-// this in files whose coverage should count every test.
-const once = new Map();
-export async function openOnce(path, params) {
-  let page = once.get(path);
-  if (!page) {
-    globalThis.__zepp.page = null;
-    await import(new URL(`../../${path}`, import.meta.url).href);
-    page = globalThis.__zepp.page;
-    if (!page) throw new Error(`${path} did not register a page (imported before by open()?)`);
-    page.initialState = structuredClone(page.state || {});
-    once.set(path, page);
-  }
-  return start(page, params);
 }
 
 export const flush = () => new Promise((r) => setTimeout(r, 0));

@@ -1,6 +1,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { state, reset, respond, open, texts, findText, click, sleep } from "./helpers/watch.js";
+import { state, reset, respond, flush, texts, findText, click, sleep } from "./helpers/watch.js";
 import { installSettings, installFetch } from "./helpers/phone.js";
 import * as ha from "../app-side/ha.js";
 import { SAA_ACTIONS, saaCommand } from "../utils/sleep.js";
@@ -19,10 +19,19 @@ beforeEach(() => {
   state.strings = { state_on: "On", state_off: "Off" };
 });
 
-// Opens the page and remembers it so the tests can destroy it (stops pending refreshes).
+// Imports the page once (so coverage counts it) and opens a shallow copy with fresh state per test.
+// The test destroys it, which stops its pending refreshes.
+let definition = null;
 async function openPage(config = CONFIGURED, get = entity) {
   respond({ GET_CONFIG: config, GET_ENTITY: get, CALL_SERVICE: { ok: true } });
-  const page = await open(PAGE);
+  if (!definition) {
+    globalThis.__zepp.page = null;
+    await import(new URL(`../${PAGE}`, import.meta.url).href);
+    definition = globalThis.__zepp.page;
+  }
+  const page = { ...definition, state: structuredClone(definition.state || {}) };
+  page.onInit();
+  await flush();
   pages.push(page);
   return page;
 }
@@ -33,6 +42,12 @@ test("without a notify service the page only explains how to set it", async () =
   assert.equal(findText("start_tracking"), undefined);
   assert.equal(findText("stop_tracking"), undefined);
   assert.deepEqual(state.requests.map((r) => r.method), ["GET_CONFIG"]);
+});
+
+test("a failed config request shows the error and no controls", async () => {
+  await openPage(new Error("offline"));
+  assert.ok(findText("Error: offline"), texts().join("|"));
+  assert.equal(findText("start_tracking"), undefined);
 });
 
 test("status line shows the status entity state", async () => {
@@ -95,6 +110,37 @@ test("stop needs two taps: the first only asks for confirmation", async () => {
 
 // Presses a button synchronously (mock timers would stall flush()).
 const press = (w) => w.props.click_func(w);
+
+test("replies that arrive after destroy are not drawn or shown", async () => {
+  let releaseConfig;
+  const pageA = await openPage(() => new Promise((r) => (releaseConfig = r)));
+  pageA.onDestroy();
+  releaseConfig(CONFIGURED);
+  await flush();
+  assert.equal(findText("start_tracking"), undefined);
+
+  let rejectConfig;
+  const pageB = await openPage(() => new Promise((_, rej) => (rejectConfig = rej)));
+  pageB.onDestroy();
+  rejectConfig(new Error("late"));
+  await flush();
+  assert.equal(findText("late"), undefined);
+
+  let releaseStatus;
+  const pageC = await openPage(CONFIGURED, () => new Promise((r) => (releaseStatus = r)));
+  pageC.onDestroy();
+  releaseStatus(entity);
+  await flush();
+  assert.equal(findText("start_tracking"), undefined);
+});
+
+test("destroying the page during a start stops the status refresh", async () => {
+  const page = await openPage();
+  await click(findText("start_tracking"));
+  page.onDestroy();
+  await sleep(2100);
+  assert.equal(state.requests.filter((r) => r.method === "GET_ENTITY").length, 1);
+});
 
 test("stop: a tap exactly 3 s after the first one is a new first tap", async (t) => {
   const page = await openPage();

@@ -13,7 +13,6 @@ const MAX_EFFECTS = 40;
 Page(
   entityPage({
     domain: "light",
-    /** @this {any} */
     draw(entity, w) {
       // Stay on the list when HA rejected the change, so its error toast is seen.
       const apply = (name) => this.act("turn_on", { effect: name }).then((ok) => ok && back());

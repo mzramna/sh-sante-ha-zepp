@@ -8,7 +8,6 @@ import { alarmPolicy } from "../../utils/controls.js";
 Page(
   entityPage({
     domain: "alarm_control_panel",
-    /** @this {any} */
     draw(e, list) {
       const policy = alarmPolicy(e.attributes);
       title(list, e.name);

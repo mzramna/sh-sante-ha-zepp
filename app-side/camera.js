@@ -1,4 +1,4 @@
-// shortcut: HA returns JPEG; rendering JPEG in an IMG widget is unverified on Zepp OS, which is why FEATURES.camera defaults to off.
+// shortcut: HA returns JPEG, converted to PNG before sending because the IMG widget is documented for PNG only; FEATURES.camera stays off until verified on a watch.
 import { SETTING } from "../shared/protocol.js";
 import { baseUrls, joinUrl, errorText } from "./http.js";
 
@@ -10,11 +10,13 @@ export function snapshotUrl(base, entity_id, width, height) {
 }
 
 // ZML download() returns a task with callbacks, not a Promise (template: zeus os3.0 file-download-module).
+// A non-200 answer (401, 404...) still downloads, so its body must not be treated as an image.
 function download(service, url, opts) {
   return new Promise((resolve, reject) => {
     const task = service.download(url, opts);
     if (!task) return reject(new Error("download unavailable"));
-    task.onSuccess = resolve;
+    task.onSuccess = (data) =>
+      data && data.statusCode === 200 ? resolve(data) : reject(new Error(`HTTP ${data && data.statusCode}`));
     task.onFail = (data) => reject(new Error(`download failed ${JSON.stringify(data)}`));
   });
 }
@@ -29,7 +31,8 @@ export async function cameraSnapshot({ entity_id, width, height }, service) {
   if (!bases.length) throw new Error("Home Assistant address not set");
   const token = settings.settingsStorage.getItem(SETTING.TOKEN);
   if (!token) throw new Error("Home Assistant token not set");
-  const name = `camera_${Date.now()}.jpg`;
+  // Named .png: the download is JPEG, and the in-place convert below makes it PNG.
+  const name = `camera_${Date.now()}.png`;
   let file;
   let lastError;
   for (const base of bases) {
@@ -45,6 +48,7 @@ export async function cameraSnapshot({ entity_id, width, height }, service) {
     }
   }
   if (!file) throw new Error(`Connection error: ${errorText(lastError)}`);
+  await service.convert({ filePath: file.filePath, targetFilePath: file.filePath });
   service.sendFile(file.filePath, { type: "image", name });
   return { file: name };
 }

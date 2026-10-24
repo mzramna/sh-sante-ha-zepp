@@ -8,7 +8,6 @@ import { VACUUM_FEATURE, rowX, supportsFeature } from "../../utils/controls.js";
 Page(
   entityPage({
     domain: "vacuum",
-    /** @this {any} */
     draw(e, list) {
       const a = e.attributes || {};
       // Old integrations send no supported_features: show every command.

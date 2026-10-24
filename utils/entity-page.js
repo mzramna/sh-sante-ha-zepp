@@ -132,6 +132,7 @@ export function entityPage({ domain, draw, pollMs = 0, ...rest }) {
         clearTimeout(s.armed[key]);
         s.timers.delete(s.armed[key]);
         delete s.armed[key];
+        this.render();
         return true;
       }
       s.armed[key] = this.later(CONFIRM_MS, () => {

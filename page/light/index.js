@@ -8,7 +8,6 @@ import { supportsBrightness } from "../../utils/features.js";
 // Named so the object is not an inline literal: entityPage's JSDoc type has no onResume key.
 const options = {
   domain: "light",
-  /** @this {any} */
   draw(entity, w) {
     const attrs = entity.attributes;
     const effects = attrs.effect_list || [];
@@ -39,7 +38,6 @@ const options = {
     }
   },
   // Back from the effect picker: show the effect that was just set.
-  /** @this {any} */
   onResume() {
     this.load();
   },
