@@ -6,6 +6,7 @@ import { syncSensors } from "./sensors.js";
 import { cameraSnapshot } from "./camera.js";
 
 // handler(params, service) -> result | Promise<result>; a throw becomes the error message.
+/** @type {Record<string, (params: any, service?: any) => any>} */
 const HANDLERS = {
   [METHOD.GET_ENTITIES]: ha.getEntities,
   [METHOD.GET_ENTITY]: ha.getEntity,

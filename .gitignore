@@ -12,4 +12,5 @@ selenium-debug.log
 *.suo
 *.ntvs*
 *.njsproj
-*.slnbuild/
+*.sln
+build/

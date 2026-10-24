@@ -36,6 +36,7 @@ const MODERN = {
     zepp2hass: true,
     mobileApp: true,
     camera: false, // experimental: watch-side JPEG rendering is unverified
+    sleepAsAndroid: true,
     notification: true,
     toast: true,
   },

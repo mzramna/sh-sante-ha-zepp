@@ -1,25 +1,59 @@
 name: CI
+
 on:
   push:
     branches:
-      - "main"
+      - main
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # only used by the release steps on main
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          node-version: '16.x'
-      - run: npm i @zeppos/zeus-cli -g
-      - run: zeus build
-      - run: mv dist/*.zab dist/ha-zepp.zab
-      - uses: "marvinpinto/action-automatic-releases@latest"
+          node-version: "22"
+
+      # setup-node's built-in npm cache needs a committed lockfile; package-lock.json is gitignored.
+      - uses: actions/cache@v4
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "latest"
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package.json') }}
+
+      # No `npm ci`: there is no lockfile in git.
+      - run: npm install
+
+      - run: npm test
+      - run: npm run check
+
+      # zeus needs network access to Zepp's servers to fetch the device list,
+      # so this step fails if the runner cannot reach them.
+      - run: node scripts/build.js --api all
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ha-zepp-zab
+          path: dist/*.zab
+          if-no-files-found: error
+
+      # softprops only creates the release; it does not move an existing tag, so move `latest` first.
+      - name: Move latest tag to this commit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git tag -f latest "$GITHUB_SHA"
+          git push -f origin latest
+
+      - name: Publish prerelease
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
           prerelease: true
-          title: "Development Build"
-          files: |
-            dist/ha-zepp.zab
+          files: dist/*.zab

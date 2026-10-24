@@ -6,6 +6,7 @@ export const FEATURES = {
   zepp2hass: true,
   mobileApp: true,
   camera: false,
+  sleepAsAndroid: true,
   notification: true,
   toast: true,
 };

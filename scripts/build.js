@@ -85,7 +85,8 @@ function appJson(profile, args, features) {
   const target = json.targets.common;
   target.platforms = args.shape ? args.shape.map((s) => SHAPES[s]) : profile.platforms;
   if (!features.appService) delete target.module["app-service"];
-  if (!features.camera) target.module.page.pages = target.module.page.pages.filter((p) => !p.startsWith("page/camera/"));
+  const dropped = [!features.camera && "page/camera/", !features.sleepAsAndroid && "page/sleep/"].filter(Boolean);
+  target.module.page.pages = target.module.page.pages.filter((p) => !dropped.some((d) => p.startsWith(d)));
   return json;
 }
 

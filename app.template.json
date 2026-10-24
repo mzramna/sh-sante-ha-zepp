@@ -35,6 +35,7 @@
             "page/vacuum/index",
             "page/alarm/index",
             "page/camera/index",
+            "page/sleep/index",
             "page/sync/index"
           ]
         },

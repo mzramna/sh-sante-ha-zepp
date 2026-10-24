@@ -28,7 +28,7 @@ export const METHOD = {
   CALL_SERVICE: "CALL_SERVICE",
   // {} -> [{area_id, name, entity_ids: string[]}]  (only enabled entities)
   GET_AREAS: "GET_AREAS",
-  // {} -> {favorites: string[], sensorMode, syncInterval}
+  // {} -> {favorites: string[], sensorMode, syncInterval, saaNotifyService, saaStatusEntity}
   GET_CONFIG: "GET_CONFIG",
   // {entity_id, width, height} -> {file}  (image sent with the file transfer API)
   CAMERA_SNAPSHOT: "CAMERA_SNAPSHOT",
@@ -50,6 +50,10 @@ export const SETTING = {
   MOBILE_APP: "mobileApp", // JSON registration, see app-side/mobile-app.js
   REGISTER_REQUEST: "mobileAppRegisterRequest", // written by the settings button
   REFRESH_ENTITIES: "listFetchRandom", // written by the settings button; app-side refills ENTITY_LIST
+  // Sleep as Android: HA notify service of the phone running SaA and the HA Companion
+  // app (e.g. "mobile_app_pixel_8"), and an entity showing the SaA state.
+  SAA_NOTIFY_SERVICE: "saaNotifyService",
+  SAA_STATUS_ENTITY: "saaStatusEntity",
   STATUS: "status", // JSON {ok, message} shown in settings after register/refresh
   LAST_SYNC: "lastSync", // JSON {time, ok, error?}
 };
