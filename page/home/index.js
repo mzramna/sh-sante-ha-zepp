@@ -7,6 +7,7 @@ import { FEATURES } from "../../config/build.js";
 import { W, TOP, MARGIN, COLOR, FONT } from "../../utils/theme.js";
 import { createTracked, clear, title, message, loading, entityCard, actionButton } from "../../utils/ui.js";
 import { runTap } from "../../utils/nav.js";
+import { requestOrDirect } from "../../utils/direct-http.js";
 
 const CATEGORY_H = 80;
 const GAP = 12;
@@ -16,6 +17,8 @@ Page(
     state: {
       widgets: [],
       alive: false,
+      config: null,
+      entities: [],
     },
     build() {
       this.state.alive = true;
@@ -24,16 +27,18 @@ Page(
     },
     load() {
       // Favourites are fetched by id, so they need not be enabled entities; no ids, no entity request.
-      return this.request({ method: METHOD.GET_CONFIG, params: {} })
+      return requestOrDirect(this, { method: METHOD.GET_CONFIG, params: {} })
         .then((config) => {
           const ids = config.favorites || [];
-          const entities = ids.length ? this.request({ method: METHOD.GET_ENTITIES, params: { ids } }) : [];
+          const entities = ids.length ? requestOrDirect(this, { method: METHOD.GET_ENTITIES, params: { ids } }) : [];
           return Promise.all([config, entities]);
         })
         .then(([config, entities]) => {
           if (!this.state.alive) return;
+          this.state.config = config;
+          this.state.entities = entities || [];
           clear(this.state.widgets);
-          this.render(config, entities);
+          this.render(config, this.state.entities);
         })
         .catch((e) => {
           if (!this.state.alive) return;
@@ -63,6 +68,7 @@ Page(
 
       const categories = [
         { text: getText("devices"), onClick: () => this.open("page/entities/index", { group: "devices" }) },
+        { text: getText("energy") || "Energy", onClick: () => this.open("page/energy/index") },
         { text: getText("scripts"), onClick: () => this.open("page/entities/index", { group: "scripts" }) },
         { text: getText("sensors"), onClick: () => this.open("page/entities/index", { group: "sensors" }) },
         { text: getText("areas"), onClick: () => this.open("page/areas/index") },
@@ -82,8 +88,19 @@ Page(
       push({ url, params: params && JSON.stringify(params) });
     },
     tap(entity) {
-      // A favourite's service changed HA state, so reload the whole page (favourites included).
-      runTap(this, entity, () => this.load());
+      runTap(this, entity, (fresh) => {
+        if (!this.state.alive) return;
+        if (fresh && this.state.entities) {
+          const idx = this.state.entities.findIndex((en) => en.entity_id === fresh.entity_id);
+          if (idx !== -1) {
+            this.state.entities[idx] = fresh;
+          } else {
+            this.state.entities.push(fresh);
+          }
+        }
+        clear(this.state.widgets);
+        this.render(this.state.config, this.state.entities);
+      });
     },
     onDestroy() {
       this.state.alive = false;

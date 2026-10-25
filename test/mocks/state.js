@@ -1,4 +1,6 @@
 // Shared state of the @zos/* and ZML mocks. Tests read it and call reset().
+import { resetInteraction } from "./zos/interaction.js";
+
 export const state = {
   widgets: [], // live widgets, in creation order
   deleted: [],
@@ -19,6 +21,7 @@ export const state = {
 };
 
 export function reset() {
+  resetInteraction();
   state.widgets = [];
   state.deleted = [];
   state.routes = [];

@@ -185,6 +185,35 @@ test("an Error without a message falls back to its string form", async () => {
   assert.deepEqual(replies, [["Error"]]);
 });
 
+test("GET_ENERGY routes to ha.getEnergy", async () => {
+  routes([
+    [
+      (o) => o.url === "https://h/api/states",
+      json(200, [
+        { entity_id: "sensor.power_meter", state: "100", attributes: { unit_of_measurement: "W", device_class: "power" } },
+        { entity_id: "sensor.temperature", state: "20", attributes: { unit_of_measurement: "°C" } },
+      ]),
+    ],
+  ]);
+  const [[err, energy]] = await request({ method: METHOD.GET_ENERGY, params: {} });
+  assert.equal(err, null);
+  assert.equal(energy.length, 1);
+  assert.equal(energy[0].entity_id, "sensor.power_meter");
+});
+
+test("SET_ENTITY_VISIBILITY routes to ha.setEntityVisibility", async () => {
+  store.set(SETTING.ENTITY_LIST, JSON.stringify([{ key: "light.bulb", title: "Bulb", value: false }]));
+  const [[err, res]] = await request({
+    method: METHOD.SET_ENTITY_VISIBILITY,
+    params: { entity_id: "light.bulb", visible: true },
+  });
+  assert.equal(err, null);
+  assert.equal(res.ok, true);
+  assert.equal(res.visible, true);
+  const list = JSON.parse(store.get(SETTING.ENTITY_LIST));
+  assert.equal(list[0].value, true);
+});
+
 test("REFRESH_ENTITIES rebuilds the entity list and writes an ok status", async () => {
   routes([[(o) => o.url === "https://h/api/states", json(200, [{ entity_id: "light.a", state: "on", attributes: {} }])]]);
   def.onSettingsChange({ key: SETTING.REFRESH_ENTITIES });
@@ -193,7 +222,7 @@ test("REFRESH_ENTITIES rebuilds the entity list and writes an ok status", async 
   assert.equal(status.ok, true);
   assert.equal(status.message, "1 entities");
   assert.equal(typeof status.time, "number");
-  assert.deepEqual(JSON.parse(store.get(SETTING.ENTITY_LIST)), [{ key: "light.a", title: "light.a", value: false }]);
+  assert.deepEqual(JSON.parse(store.get(SETTING.ENTITY_LIST)), [{ key: "light.a", title: "light.a", value: false, area_id: "", area_name: "" }]);
 });
 
 test("REFRESH_ENTITIES writes the HA error into the status when the request fails", async () => {

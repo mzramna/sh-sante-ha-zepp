@@ -53,7 +53,7 @@ test("toEntity maps light brightness to percent and drops unknown attributes", (
   });
 });
 
-test("toEntity falls back to entity_id for name and keeps unit", () => {
+test("toEntity falls back to entity_id for name and keeps unit and sensor attributes", () => {
   const e = ha.toEntity({
     entity_id: "sensor.temp",
     state: "21.5",
@@ -62,7 +62,34 @@ test("toEntity falls back to entity_id for name and keeps unit", () => {
   assert.equal(e.name, "sensor.temp");
   assert.equal(e.unit, "°C");
   assert.equal(e.area, "");
-  assert.deepEqual(e.attributes, {});
+  assert.deepEqual(e.attributes, {
+    device_class: "temperature",
+    state_class: "measurement",
+    unit_of_measurement: "°C",
+  });
+});
+
+test("toEntity handles light color temp and converts tuples to arrays for hs_color and rgb_color", () => {
+  const e = ha.toEntity({
+    entity_id: "light.living",
+    state: "on",
+    attributes: {
+      color_temp: 350,
+      color_temp_kelvin: 2850,
+      min_color_temp_kelvin: 2000,
+      max_color_temp_kelvin: 6500,
+      hs_color: [25.5, 100],
+      rgb_color: [255, 128, 0],
+    },
+  });
+  assert.equal(e.attributes.color_temp, 350);
+  assert.equal(e.attributes.color_temp_kelvin, 2850);
+  assert.equal(e.attributes.min_color_temp_kelvin, 2000);
+  assert.equal(e.attributes.max_color_temp_kelvin, 6500);
+  assert.ok(Array.isArray(e.attributes.hs_color));
+  assert.deepEqual(e.attributes.hs_color, [25.5, 100]);
+  assert.ok(Array.isArray(e.attributes.rgb_color));
+  assert.deepEqual(e.attributes.rgb_color, [255, 128, 0]);
 });
 
 test("toEntity accepts the [key, value] attribute pairs sent by the template", () => {
@@ -171,10 +198,98 @@ test("refreshEntityList keeps flags and order, appends new supported entities, d
 
   assert.equal(message, "3 entities");
   assert.deepEqual(JSON.parse(store[SETTING.ENTITY_LIST]), [
-    { key: "switch.b", title: "switch.b", value: true },
-    { key: "light.a", title: "Lamp A", value: false },
-    { key: "lock.front", title: "lock.front", value: false },
+    { key: "switch.b", title: "switch.b", value: true, area_id: "", area_name: "" },
+    { key: "light.a", title: "Lamp A", value: false, area_id: "", area_name: "" },
+    { key: "lock.front", title: "lock.front", value: false, area_id: "", area_name: "" },
   ]);
+});
+
+test("refreshEntityList attaches area_id and area_name from areas template", async () => {
+  setStore({
+    [SETTING.LOCAL_URL]: "https://h",
+    [SETTING.TOKEN]: "t",
+    [SETTING.ENTITY_LIST]: "[]",
+  });
+  stubFetch((opts) => {
+    if (opts.url.endsWith("/api/states")) {
+      return json(200, [
+        { entity_id: "light.living_room", state: "on", attributes: { friendly_name: "Living Room Light" } },
+        { entity_id: "switch.kitchen_plug", state: "off", attributes: { friendly_name: "Kitchen Plug" } },
+      ]);
+    }
+    if (opts.url.endsWith("/api/template")) {
+      return json(200, [
+        { area_id: "living", name: "Living Room", entities: ["light.living_room"] },
+        { area_id: "kitchen", name: "Kitchen", entities: ["switch.kitchen_plug"] },
+      ]);
+    }
+    return json(404, {});
+  });
+
+  await ha.refreshEntityList();
+  const list = JSON.parse(store[SETTING.ENTITY_LIST]);
+  assert.equal(list.length, 2);
+  assert.deepEqual(list[0], {
+    key: "light.living_room",
+    title: "Living Room Light",
+    value: false,
+    area_id: "living",
+    area_name: "Living Room",
+  });
+  assert.deepEqual(list[1], {
+    key: "switch.kitchen_plug",
+    title: "Kitchen Plug",
+    value: false,
+    area_id: "kitchen",
+    area_name: "Kitchen",
+  });
+});
+
+test("getEnergy fetches states and filters for energy sensors", async () => {
+  stubFetch(() =>
+    json(200, [
+      { entity_id: "sensor.house_power", state: "1250", attributes: { unit_of_measurement: "W", device_class: "power" } },
+      { entity_id: "sensor.water_meter", state: "340", attributes: { unit_of_measurement: "L", device_class: "water" } },
+      { entity_id: "sensor.gas_consumption", state: "12.4", attributes: { unit_of_measurement: "m³", device_class: "gas" } },
+      { entity_id: "sensor.outside_temp", state: "22", attributes: { unit_of_measurement: "°C" } },
+      { entity_id: "light.bulb", state: "on", attributes: {} },
+    ])
+  );
+
+  const energySensors = await ha.getEnergy();
+  assert.equal(energySensors.length, 3);
+  assert.deepEqual(
+    energySensors.map((e) => e.entity_id),
+    ["sensor.house_power", "sensor.water_meter", "sensor.gas_consumption"]
+  );
+  assert.equal(energySensors[0].unit, "W");
+  assert.equal(energySensors[1].unit, "L");
+  assert.equal(energySensors[2].unit, "m³");
+});
+
+test("setEntityVisibility updates or creates entity item in ENTITY_LIST", () => {
+  setStore({
+    [SETTING.ENTITY_LIST]: JSON.stringify([
+      { key: "light.a", title: "Light A", value: true },
+      { key: "switch.b", title: "Switch B", value: false },
+    ]),
+  });
+
+  const res1 = ha.setEntityVisibility({ entity_id: "switch.b", visible: true });
+  assert.equal(res1.ok, true);
+  assert.equal(res1.visible, true);
+  let list = JSON.parse(store[SETTING.ENTITY_LIST]);
+  assert.equal(list.find((e) => e.key === "switch.b").value, true);
+
+  // Non-existent entity is appended
+  const res2 = ha.setEntityVisibility({ entity_id: "sensor.c", visible: false });
+  assert.equal(res2.ok, true);
+  list = JSON.parse(store[SETTING.ENTITY_LIST]);
+  assert.equal(list.length, 3);
+  assert.equal(list[2].key, "sensor.c");
+  assert.equal(list[2].value, false);
+
+  assert.throws(() => ha.setEntityVisibility({}), /Missing entity_id/);
 });
 
 test("joinUrl keeps a base path behind a reverse proxy", async () => {

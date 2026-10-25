@@ -8,6 +8,17 @@ function getEntityList() {
     : [];
 }
 
+function getFavoritesList() {
+  const raw = settings.settingsStorage.getItem("favorites");
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    return [];
+  }
+}
+
 async function fetchRequest(url, path, fetchParams = {}) {
   const token = settings.settingsStorage.getItem("HAToken");
   const res = await fetch({
@@ -58,8 +69,9 @@ async function request(path, fetchParams) {
 async function getEnabledEntities() {
   const { body } = await request("/api/states");
   const entities = typeof body === "string" ? JSON.parse(body) : body;
+  const favList = getFavoritesList();
   const enabledEntities = getEntityList()
-    .filter((item) => item.value)
+    .filter((item) => item.value || item.favorite || favList.includes(item.key))
     .map((item) => {
       const actualEntity = entities.find((it) => it.entity_id === item.key);
       if (!actualEntity) return null;
@@ -78,6 +90,7 @@ async function getEnabledEntities() {
         title,
         state,
         type: actualEntity.entity_id.split(".")[0],
+        favorite: !!(item.favorite || favList.includes(item.key)),
       };
     })
     .filter((item) => item);
@@ -162,7 +175,7 @@ AppSideService({
     settings.settingsStorage.addListener(
       "change",
       async ({ key, newValue, oldValue }) => {
-        if (key === "entityList") {
+        if (key === "entityList" || key === "favorites") {
           const enabledEntities = await getEnabledEntities();
           messageBuilder.call({
             action: "listUpdate",

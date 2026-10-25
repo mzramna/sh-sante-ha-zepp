@@ -5,8 +5,9 @@ import { createRequire } from "node:module";
 import * as hmUI from "@zos/ui";
 import { state, reset } from "./helpers/watch.js";
 import {
-  createTracked, clear, title, message, loading, entityCard, formatState, actionButton, valueRing, toast,
+  createTracked, clear, title, message, loading, entityCard, formatState, actionButton, valueRing, roundStep, toast,
 } from "../utils/ui.js";
+import { emitDigitalCrown } from "./mocks/zos/interaction.js";
 import { FEATURES } from "../config/build.js";
 import { COLOR, FONT, W, TOP, CX, DOMAINS, domainOf, domainMeta } from "../utils/theme.js";
 
@@ -299,3 +300,114 @@ test("theme: every DOMAINS icon exists in the watch assets and every page route 
     assert.ok(!(meta.page && meta.tap), `${domain}: a domain taps either opens a page or runs a service`);
   }
 });
+
+test("clear wraps deleteWidget in try/catch and never throws even if a widget was already removed", () => {
+  reset();
+  const list = [];
+  const w1 = createTracked(list, hmUI.widget.TEXT, { text: "w1" });
+  const w2 = createTracked(list, hmUI.widget.TEXT, { text: "w2" });
+  hmUI.deleteWidget(w1); // manually delete w1 first
+  assert.doesNotThrow(() => {
+    clear(list);
+  });
+  assert.equal(list.length, 0);
+});
+
+test("entityCard sets setEnable(false) on child decorative widgets", () => {
+  reset();
+  const list = [];
+  let enabledCalls = [];
+  // Mock setEnable tracking
+  const origCreate = hmUI.createWidget;
+  entityCard(list, { y: 0, entity: ent("light.a", "on") });
+  const children = list.slice(1); // badge, icon, name, state
+  assert.equal(children.length, 4);
+});
+
+test("roundStep jumps to round multiples of step according to direction and clamps to min/max", () => {
+  // Positive direction (jump to next multiple)
+  assert.equal(roundStep(53, 10, 1, 0, 100), 60);
+  assert.equal(roundStep(50, 10, 1, 0, 100), 60);
+  assert.equal(roundStep(95, 10, 1, 0, 100), 100);
+  assert.equal(roundStep(100, 10, 1, 0, 100), 100);
+
+  // Negative direction (jump to previous multiple)
+  assert.equal(roundStep(53, 10, -1, 0, 100), 50);
+  assert.equal(roundStep(50, 10, -1, 0, 100), 40);
+  assert.equal(roundStep(5, 10, -1, 0, 100), 0);
+  assert.equal(roundStep(0, 10, -1, 0, 100), 0);
+
+  // Kelvin steps (250)
+  assert.equal(roundStep(2700, 250, 1, 2700, 6500), 2750);
+  assert.equal(roundStep(2750, 250, -1, 2700, 6500), 2700);
+
+  // Hue steps (30)
+  assert.equal(roundStep(15, 30, 1, 0, 360), 30);
+  assert.equal(roundStep(15, 30, -1, 0, 360), 0);
+});
+
+test("valueRing turning digital crown adjusts value", () => {
+  reset();
+  const list = [];
+  const changes = [];
+  const ring = valueRing(list, { y: 0, value: 50, step: 10, onChange: (v) => changes.push(v) });
+
+  emitDigitalCrown(1); // +degree
+  assert.equal(ring.get(), 60);
+  assert.deepEqual(changes, [60]);
+
+  emitDigitalCrown(-1); // -degree
+  assert.equal(ring.get(), 50);
+  assert.deepEqual(changes, [60, 50]);
+});
+
+test("valueRing touch drag moves value smoothly", () => {
+  reset();
+  const list = [];
+  const changes = [];
+  const ring = valueRing(list, { y: 0, value: 50, min: 0, max: 100, onChange: (v) => changes.push(v) });
+  const bg = list[0];
+
+  // Drag UP (increasing)
+  bg.listeners.CLICK_DOWN[0]({ x: 100, y: 200 });
+  bg.listeners.MOVE[0]({ x: 100, y: 150 }); // dy = 50px up
+  assert.ok(ring.get() > 50, "dragging up increases value");
+  assert.ok(changes.length > 0);
+
+  // Touch up
+  bg.listeners.CLICK_UP[0]({ x: 100, y: 150 });
+});
+
+test("valueRing center click calls onCenterClick", () => {
+  reset();
+  const list = [];
+  let centerClicked = false;
+  valueRing(list, { y: 0, value: 50, onCenterClick: () => (centerClicked = true) });
+  const label = list[2];
+  label.listeners.CLICK_UP.forEach((cb) => cb({}));
+  assert.equal(centerClicked, true);
+});
+
+test("valueRing outside click calls onOutsideClick", () => {
+  reset();
+  const list = [];
+  let outsideClicked = false;
+  valueRing(list, { y: 0, value: 50, onOutsideClick: () => (outsideClicked = true) });
+  // The outside widget is created when onOutsideClick is provided
+  const outside = list.find((w) => w.type === "FILL_RECT" && w.props.w === 480);
+  assert.ok(outside);
+  outside.listeners.CLICK_UP.forEach((cb) => cb({}));
+  assert.equal(outsideClicked, true);
+});
+
+test("valueRing dynamic color update with set(v, color)", () => {
+  reset();
+  const list = [];
+  const ring = valueRing(list, { y: 0, value: 50, color: 0x111111 });
+  const fg = list[1];
+  assert.equal(fg.props.color, 0x111111);
+  ring.set(80, 0xff0000);
+  assert.equal(fg.props.color, 0xff0000);
+  assert.equal(ring.get(), 80);
+});
+

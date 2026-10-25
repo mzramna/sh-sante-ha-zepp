@@ -102,19 +102,19 @@ test("no status message when none was written", async () => {
 });
 
 test("entity list: supported domains only, search filters by id", async () => {
-  let tree = await open({ [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES) });
-  const labels = ofType(tree, "Toggle").map((n) => n.props.label).filter((l) => !l.startsWith("★"));
+  let tree = await open({ settingsActiveTab: "entities", entityTypeFilter: "all", [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES) });
+  const labels = ofType(tree, "Toggle").map((n) => n.props.label).filter((l) => !l.startsWith("★") && l !== "Show only favorites");
   assert.deepEqual(labels, ["A (light.a)", "X (climate.x)", "S (sensor.s)"]);
 
   one(tree, "TextInput", "Filter").props.onChange("climate");
   assert.equal(store.get("filter"), "climate");
   tree = build();
-  const filtered = ofType(tree, "Toggle").map((n) => n.props.label).filter((l) => !l.startsWith("★"));
+  const filtered = ofType(tree, "Toggle").map((n) => n.props.label).filter((l) => !l.startsWith("★") && l !== "Show only favorites");
   assert.deepEqual(filtered, ["X (climate.x)"]);
 });
 
 test("empty list and no-match hints", async () => {
-  let tree = await open();
+  let tree = await open({ settingsActiveTab: "entities" });
   assert.ok(texts(tree).includes("Tap Refresh entities to load them from Home Assistant."));
 
   store.set(SETTING.ENTITY_LIST, JSON.stringify(ENTITIES));
@@ -124,12 +124,12 @@ test("empty list and no-match hints", async () => {
 });
 
 test("a corrupt entity list shows as empty", async () => {
-  const tree = await open({ [SETTING.ENTITY_LIST]: "{not json" });
+  const tree = await open({ settingsActiveTab: "entities", [SETTING.ENTITY_LIST]: "{not json" });
   assert.ok(texts(tree).includes("Tap Refresh entities to load them from Home Assistant."));
 });
 
 test("show-on-watch toggle saves the flag", async () => {
-  let tree = await open({ [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES) });
+  let tree = await open({ settingsActiveTab: "entities", [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES) });
   toggles(tree, "A (light.a)")[0].props.onChange(false);
   assert.equal(entityList().find((e) => e.key === "light.a").value, false);
   tree = build();
@@ -139,7 +139,7 @@ test("show-on-watch toggle saves the flag", async () => {
 });
 
 test("favorites keep the order they were marked in; unmarking removes", async () => {
-  let tree = await open({ [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES) });
+  let tree = await open({ settingsActiveTab: "entities", [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES) });
   const fav = () => JSON.parse(store.get(SETTING.FAVORITES));
 
   favToggles(tree)[1].props.onChange(true); // climate.x
@@ -156,7 +156,7 @@ test("favorites keep the order they were marked in; unmarking removes", async ()
 });
 
 test("Top moves the entity to the front and keeps the flags", async () => {
-  const tree = await open({ [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES) });
+  const tree = await open({ settingsActiveTab: "entities", [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES) });
   topButtons(tree)[1].props.onClick(); // climate.x
   assert.deepEqual(
     entityList().map((e) => e.key),
@@ -173,7 +173,7 @@ test("Health data: default mode is off, no sync or URL fields", async () => {
     mode.props.options.map((o) => o.value),
     ["none", "zepp2hass", "mobile_app", "rest"]
   );
-  assert.equal(ofType(tree, "Select").length, 1);
+  assert.equal(ofType(tree, "Select").filter((s) => s.props.label !== "Theme").length, 1);
   assert.equal(ofType(tree, "TextInput").some((n) => n.props.label === "zepp2hass webhook URL"), false);
 });
 
@@ -381,3 +381,206 @@ test("moveToTop moves one key to the front, unknown or first key changes nothing
   assert.deepEqual(logic.moveToTop(list, "zzz").map((e) => e.key), ["a", "b", "c"]);
   assert.notEqual(logic.moveToTop(list, "a"), list);
 });
+
+test("theme selector updates uiTheme in storage", async () => {
+  const tree = await open();
+  const theme = one(tree, "Select", "Theme");
+  assert.equal(theme.props.value, "dark");
+  theme.props.onChange("light");
+  assert.equal(store.get("uiTheme"), "light");
+  const updated = build();
+  assert.equal(one(updated, "Select", "Theme").props.value, "light");
+});
+
+test("favorites quick-access section displays hints and manages favorite ordering and removal", async () => {
+  let tree = await open({
+    settingsActiveTab: "favorites",
+    [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES),
+    [SETTING.FAVORITES]: JSON.stringify([]),
+  });
+  assert.ok(texts(tree).includes("NoFavoritesHint"));
+  assert.ok(texts(tree).includes("QuickAccessHint"));
+
+  store.set(SETTING.FAVORITES, JSON.stringify(["climate.x", "light.a"]));
+  tree = build();
+  assert.ok(!texts(tree).includes("NoFavoritesHint"));
+  assert.ok(texts(tree).includes("★ X (climate.x)"));
+  assert.ok(texts(tree).includes("★ A (light.a)"));
+
+  const up = ofType(tree, "Button").filter((n) => n.props.label === "↑");
+  const down = ofType(tree, "Button").filter((n) => n.props.label === "↓");
+  const remove = ofType(tree, "Button").filter((n) => n.props.label === "Remove");
+  assert.equal(up.length, 2);
+  assert.equal(down.length, 2);
+  assert.equal(remove.length, 2);
+
+  // Move climate.x down (step +1)
+  down[0].props.onClick();
+  assert.deepEqual(JSON.parse(store.get(SETTING.FAVORITES)), ["light.a", "climate.x"]);
+
+  // Move climate.x up (step -1)
+  tree = build();
+  ofType(tree, "Button").filter((n) => n.props.label === "↑")[1].props.onClick();
+  assert.deepEqual(JSON.parse(store.get(SETTING.FAVORITES)), ["climate.x", "light.a"]);
+
+  // Remove climate.x
+  tree = build();
+  ofType(tree, "Button").filter((n) => n.props.label === "Remove")[0].props.onClick();
+  assert.deepEqual(JSON.parse(store.get(SETTING.FAVORITES)), ["light.a"]);
+});
+
+test("Show only favorites toggle filters entities and resets entityPage", async () => {
+  let tree = await open({
+    settingsActiveTab: "entities",
+    [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES),
+    [SETTING.FAVORITES]: JSON.stringify(["climate.x"]),
+  });
+  const favToggle = one(tree, "Toggle", "Show only favorites");
+  assert.equal(favToggle.props.value, false);
+
+  favToggle.props.onChange(true);
+  assert.equal(store.get("filterFav"), "true");
+  assert.equal(store.get("entityPage"), "0");
+
+  tree = build();
+  const visible = ofType(tree, "Toggle").map((n) => n.props.label).filter((l) => !l.startsWith("★") && l !== "Show only favorites");
+  assert.deepEqual(visible, ["X (climate.x)"]);
+
+  // Turn off
+  one(tree, "Toggle", "Show only favorites").props.onChange(false);
+  assert.equal(store.get("filterFav"), "false");
+});
+
+test("entities pagination in settings page handles page navigation", async () => {
+  const many = Array.from({ length: 30 }, (_, i) => ({ key: `light.d_${i}`, title: `D ${i}`, value: true }));
+  let tree = await open({ settingsActiveTab: "entities", [SETTING.ENTITY_LIST]: JSON.stringify(many) });
+  assert.ok(texts(tree).includes("1 / 2 (30)"));
+
+  const nextBtn = ofType(tree, "Button").find((n) => n.props.label === "Next");
+  const prevBtn = ofType(tree, "Button").find((n) => n.props.label === "Prev");
+  assert.ok(nextBtn && prevBtn);
+
+  // Navigate to page 2
+  nextBtn.props.onClick();
+  assert.equal(store.get("entityPage"), "1");
+  tree = build();
+  assert.ok(texts(tree).includes("2 / 2 (30)"));
+
+  // Navigate back to page 1
+  ofType(tree, "Button").find((n) => n.props.label === "Prev").props.onClick();
+  assert.equal(store.get("entityPage"), "0");
+});
+
+test("tab navigation: clicking tab buttons switches active tab in storage", async () => {
+  let tree = await open();
+  const tabNames = ["Access", "Favorites", "Entities", "Areas", "Energy"];
+  for (const name of tabNames) {
+    const btn = one(tree, "Button", name);
+    assert.ok(btn);
+  }
+
+  // Switch to Entities
+  one(tree, "Button", "Entities").props.onClick();
+  assert.equal(store.get("settingsActiveTab"), "entities");
+  tree = build();
+  assert.ok(ofType(tree, "TextInput").some((n) => n.props.label === "Filter"));
+
+  // Switch to Areas
+  one(tree, "Button", "Areas").props.onClick();
+  assert.equal(store.get("settingsActiveTab"), "areas");
+
+  // Switch to Energy
+  one(tree, "Button", "Energy").props.onClick();
+  assert.equal(store.get("settingsActiveTab"), "energy");
+});
+
+test("entities tab filter pills: interactive (default), sensors, all", async () => {
+  const entities = [
+    { key: "light.lamp", title: "Lamp", value: true },
+    { key: "switch.fan", title: "Fan Switch", value: true },
+    { key: "sensor.temp", title: "Temperature", value: true },
+  ];
+  let tree = await open({ settingsActiveTab: "entities", [SETTING.ENTITY_LIST]: JSON.stringify(entities) });
+
+  // Default interactive filter: only light and switch
+  let labels = ofType(tree, "Toggle").map((n) => n.props.label).filter((l) => !l.startsWith("★") && l !== "Show only favorites");
+  assert.deepEqual(labels, ["Lamp (light.lamp)", "Fan Switch (switch.fan)"]);
+
+  // Switch to Sensors pill
+  one(tree, "Button", "Sensors").props.onClick();
+  assert.equal(store.get("entityTypeFilter"), "sensors");
+  tree = build();
+  labels = ofType(tree, "Toggle").map((n) => n.props.label).filter((l) => !l.startsWith("★") && l !== "Show only favorites");
+  assert.deepEqual(labels, ["Temperature (sensor.temp)"]);
+
+  // Switch to All pill
+  one(tree, "Button", "All").props.onClick();
+  assert.equal(store.get("entityTypeFilter"), "all");
+  tree = build();
+  labels = ofType(tree, "Toggle").map((n) => n.props.label).filter((l) => !l.startsWith("★") && l !== "Show only favorites");
+  assert.deepEqual(labels, ["Lamp (light.lamp)", "Fan Switch (switch.fan)", "Temperature (sensor.temp)"]);
+});
+
+test("areas tab: grouped by room with device visibility toggle", async () => {
+  const entities = [
+    { key: "light.living_room", title: "Living Light", value: true, area_id: "living", area_name: "Living Room" },
+    { key: "switch.kitchen_fan", title: "Kitchen Fan", value: false, area_id: "kitchen", area_name: "Kitchen" },
+  ];
+  let tree = await open({ settingsActiveTab: "areas", [SETTING.ENTITY_LIST]: JSON.stringify(entities) });
+
+  const togglesList = ofType(tree, "Toggle");
+  assert.equal(togglesList.length, 2);
+  assert.equal(togglesList[0].props.label, "Kitchen Fan (switch.kitchen_fan)");
+  assert.equal(togglesList[1].props.label, "Living Light (light.living_room)");
+
+  // Toggle visibility in area
+  togglesList[0].props.onChange(true);
+  const updated = JSON.parse(store.get(SETTING.ENTITY_LIST));
+  assert.equal(updated.find((e) => e.key === "switch.kitchen_fan").value, true);
+});
+
+test("energy tab: sensors categorized with visibility toggles", async () => {
+  const entities = [
+    { key: "sensor.main_power", title: "Power", value: true, unit: "W" },
+    { key: "sensor.water_meter", title: "Water", value: false, unit: "L" },
+    { key: "sensor.gas_consumption", title: "Gas", value: true, unit: "m³" },
+  ];
+  let tree = await open({ settingsActiveTab: "energy", [SETTING.ENTITY_LIST]: JSON.stringify(entities) });
+
+  const togglesList = ofType(tree, "Toggle");
+  assert.equal(togglesList.length, 3);
+  togglesList[1].props.onChange(true); // turn on water meter
+  const updated = JSON.parse(store.get(SETTING.ENTITY_LIST));
+  assert.equal(updated.find((e) => e.key === "sensor.water_meter").value, true);
+});
+
+test("moveFavorite moves item up, down, to top, and handles boundary conditions", () => {
+  const list = ["a", "b", "c"];
+  // step -1 (up)
+  assert.deepEqual(logic.moveFavorite(list, "b", -1), ["b", "a", "c"]);
+  // step 1 (down)
+  assert.deepEqual(logic.moveFavorite(list, "b", 1), ["a", "c", "b"]);
+  // step 0 (top)
+  assert.deepEqual(logic.moveFavorite(list, "c", 0), ["c", "a", "b"]);
+  assert.deepEqual(logic.moveFavorite(list, "a", 0), ["a", "b", "c"]);
+  // boundary checks
+  assert.deepEqual(logic.moveFavorite(list, "a", -1), ["a", "b", "c"]);
+  assert.deepEqual(logic.moveFavorite(list, "c", 1), ["a", "b", "c"]);
+  // unknown id
+  assert.deepEqual(logic.moveFavorite(list, "x", -1), ["a", "b", "c"]);
+  assert.deepEqual(logic.moveFavorite(list, "x", 0), ["a", "b", "c"]);
+});
+
+test("paginate slices lists and clamps bounds safely", () => {
+  const items = [1, 2, 3, 4, 5];
+  assert.deepEqual(logic.paginate(items, 0, 2), { items: [1, 2], page: 0, totalPages: 3, total: 5 });
+  assert.deepEqual(logic.paginate(items, 1, 2), { items: [3, 4], page: 1, totalPages: 3, total: 5 });
+  assert.deepEqual(logic.paginate(items, 2, 2), { items: [5], page: 2, totalPages: 3, total: 5 });
+  // Clamped bounds
+  assert.deepEqual(logic.paginate(items, 99, 2), { items: [5], page: 2, totalPages: 3, total: 5 });
+  assert.deepEqual(logic.paginate(items, -5, 2), { items: [1, 2], page: 0, totalPages: 3, total: 5 });
+  // Empty or non-array
+  assert.deepEqual(logic.paginate([], 0, 10), { items: [], page: 0, totalPages: 1, total: 0 });
+  assert.deepEqual(logic.paginate(null, 0, 10), { items: [], page: 0, totalPages: 1, total: 0 });
+});
+

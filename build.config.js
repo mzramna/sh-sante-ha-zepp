@@ -48,13 +48,13 @@ module.exports = {
     "1.0": {
       tree: "legacy",
     },
-    // Lowest level the modern tree supports: ZML >= 0.0.28 needs API 3.6.
+    // Lowest level the modern tree supports: ZML >= 0.0.28 needs API 3.6 (includes Amazfit Balance 1).
     "3.6": {
       apiVersion: { compatible: "3.6", target: "3.6", minVersion: "3.6" },
       ...MODERN,
     },
     "4.0": {
-      apiVersion: { compatible: "4.0", target: "4.0", minVersion: "4.0" },
+      apiVersion: { compatible: "3.6", target: "4.0", minVersion: "3.6" },
       ...MODERN,
     },
   },

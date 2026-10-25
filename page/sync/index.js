@@ -8,6 +8,7 @@ import { W, TOP, MARGIN, COLOR, FONT, RADIUS } from "../../utils/theme.js";
 import { createTracked, clear, title, actionButton, toast } from "../../utils/ui.js";
 import { collectReadings } from "../../app-service/collect.js";
 import { KEY_LAST, KEY_ALARM, read, write, scheduleNext, stop } from "../../app-service/schedule.js";
+import { requestOrDirect } from "../../utils/direct-http.js";
 
 const FIRST_DELAY_SEC = 10;
 const CARD_H = 240;
@@ -37,7 +38,7 @@ Page(
     build() {
       this.state.alive = true;
       this.render();
-      this.request({ method: METHOD.GET_CONFIG, params: {} })
+      requestOrDirect(this, { method: METHOD.GET_CONFIG, params: {} })
         .then((config) => {
           this.state.mode = config.sensorMode;
         })
@@ -92,7 +93,7 @@ Page(
       } catch (e) {
         return this.finishSync(false, (e && e.message) || String(e));
       }
-      return this.request({ method: METHOD.SYNC_SENSORS, params: { payload } })
+      return requestOrDirect(this, { method: METHOD.SYNC_SENSORS, params: { payload } })
         .then(() => this.finishSync(true))
         .catch((e) => this.finishSync(false, (e && e.message) || String(e)));
     },

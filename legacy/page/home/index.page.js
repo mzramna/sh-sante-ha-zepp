@@ -209,17 +209,21 @@ Page({
     });
 
     if ((item.type === "light") | (item.type === "media_player")) {
-      const iconsize = 24;
-      const details_button = this.createWidget(hmUI.widget.IMG, {
-        x: DEVICE_WIDTH - iconsize - 5,
-        y: this.state.y + titleHeight + valueHeight / 2 - iconsize / 2,
-        src: "forward24.png",
-      });
-      details_button.addEventListener(hmUI.event.CLICK_UP, (info) => {
-        hmApp.gotoPage({
-          file: `page/${item.type}/index.page`,
-          param: JSON.stringify(item),
-        });
+      const details_button = this.createWidget(hmUI.widget.BUTTON, {
+        x: DEVICE_WIDTH / 4,
+        y: this.state.y + titleHeight,
+        w: DEVICE_WIDTH / 2,
+        h: valueHeight,
+        text: t("details"),
+        normal_color: 0x18bcf2,
+        press_color: 0x61cef2,
+        radius: 20,
+        click_func: (button) => {
+          hmApp.gotoPage({
+            file: `page/${item.type}/index.page`,
+            param: JSON.stringify(item),
+          });
+        },
       });
     }
     this.state.y += totalHeight;
@@ -258,17 +262,21 @@ Page({
     });
 
     if ((item.type === "light") | (item.type === "media_player")) {
-      const iconsize = 24;
-      const details_button = this.createWidget(hmUI.widget.IMG, {
-        x: DEVICE_WIDTH - iconsize - 5,
-        y: this.state.y + titleHeight + valueHeight / 2 - iconsize / 2,
-        src: "forward24.png",
-      });
-      details_button.addEventListener(hmUI.event.CLICK_UP, (info) => {
-        hmApp.gotoPage({
-          file: `page/${item.type}/index.page`,
-          param: JSON.stringify(item),
-        });
+      const details_button = this.createWidget(hmUI.widget.BUTTON, {
+        x: DEVICE_WIDTH / 4,
+        y: this.state.y + titleHeight,
+        w: DEVICE_WIDTH / 2,
+        h: valueHeight,
+        text: t("details"),
+        normal_color: 0x18bcf2,
+        press_color: 0x61cef2,
+        radius: 20,
+        click_func: (button) => {
+          hmApp.gotoPage({
+            file: `page/${item.type}/index.page`,
+            param: JSON.stringify(item),
+          });
+        },
       });
     }
     this.state.y += totalHeight;
@@ -337,6 +345,28 @@ Page({
   createAndUpdateList() {
     this.clearWidgets();
     this.state.rendered = false;
+
+    // Quick-Access Favorites rendered directly at the top of the home screen
+    const favorites = (this.state.dataList || []).filter(
+      (it) => it && it.favorite
+    );
+    if (favorites.length > 0) {
+      this.createWidget(hmUI.widget.TEXT, {
+        x: 0,
+        y: this.state.y,
+        w: DEVICE_WIDTH,
+        h: 28,
+        text: `★ ${t("favorites")}`,
+        text_size: 19,
+        color: 0xffd700,
+        align_h: hmUI.align.CENTER_H,
+      });
+      this.state.y += 30;
+      favorites.forEach((item) => {
+        this.createElement(item);
+      });
+    }
+
     this.createButton();
     this.createButton2();
     this.createButton3();

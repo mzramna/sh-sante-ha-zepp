@@ -1,0 +1,10 @@
+{
+  "energy": { "en-US": "Energy", "pt-BR": "Energia", "es-ES": "Energía" },
+  "electricity": { "en-US": "Electricity", "pt-BR": "Eletricidade", "es-ES": "Electricidad" },
+  "water": { "en-US": "Water", "pt-BR": "Água", "es-ES": "Agua" },
+  "gas": { "en-US": "Gas", "pt-BR": "Gás", "es-ES": "Gas" },
+  "areas": { "en-US": "Areas", "pt-BR": "Áreas", "es-ES": "Áreas" },
+  "brightness": { "en-US": "Brightness", "pt-BR": "Potência", "es-ES": "Brillo" },
+  "color_temp": { "en-US": "Color Temp", "pt-BR": "Tonalidade", "es-ES": "Tono" },
+  "color": { "en-US": "Color", "pt-BR": "Cor", "es-ES": "Color" }
+}

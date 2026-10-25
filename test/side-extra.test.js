@@ -202,8 +202,8 @@ test("refreshEntityList keeps only the first copy of a duplicated entry and skip
   ])]]);
   assert.equal(await ha.refreshEntityList(), "2 entities");
   assert.deepEqual(JSON.parse(store[SETTING.ENTITY_LIST]), [
-    { key: "light.a", title: "light.a", value: true },
-    { key: "light.new", title: "light.new", value: false },
+    { key: "light.a", title: "light.a", value: true, area_id: "", area_name: "" },
+    { key: "light.new", title: "light.new", value: false, area_id: "", area_name: "" },
   ]);
 });
 
@@ -211,7 +211,7 @@ test("refreshEntityList starts from scratch when the stored list is corrupt", as
   store[SETTING.ENTITY_LIST] = "[oops";
   installFetch([[(o) => o.url === "https://h/api/states", json(200, [{ entity_id: "switch.a", state: "on", attributes: { friendly_name: "A" } }])]]);
   await ha.refreshEntityList();
-  assert.deepEqual(JSON.parse(store[SETTING.ENTITY_LIST]), [{ key: "switch.a", title: "A", value: false }]);
+  assert.deepEqual(JSON.parse(store[SETTING.ENTITY_LIST]), [{ key: "switch.a", title: "A", value: false, area_id: "", area_name: "" }]);
 });
 
 // ---- http.js ----

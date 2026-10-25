@@ -5,6 +5,7 @@ import { METHOD } from "../shared/protocol.js";
 import { buildPayload } from "../shared/zepp2hass.js";
 import { collectReadings } from "./collect.js";
 import { KEY_LAST, KEY_FAILS, read, write, scheduleNext, stop } from "./schedule.js";
+import { requestOrDirect } from "../utils/direct-http.js";
 
 const RETRY_SEC = 5 * 60;
 const FAILS_BEFORE_NOTIFY = 3;
@@ -19,7 +20,7 @@ export function nextDelaySeconds(result) {
 async function sendToPhone() {
   const messaging = /** @type {any} */ (getApp())._options.globalData.messaging;
   const payload = buildPayload(collectReadings());
-  const res = await messaging.request({ method: METHOD.SYNC_SENSORS, params: { payload } }, { timeout: 15000 });
+  const res = await requestOrDirect(messaging, { method: METHOD.SYNC_SENSORS, params: { payload } }, { timeout: 15000 });
   return { ok: true, interval: res.interval, disabled: !!res.disabled };
 }
 

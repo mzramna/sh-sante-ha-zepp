@@ -50,3 +50,35 @@ export const DOMAINS = {
 
 export const domainOf = (entityId) => entityId.split(".")[0];
 export const domainMeta = (entityId) => DOMAINS[domainOf(entityId)] || DOMAINS.sensor;
+
+export function hsvToHex(h, s = 100, v = 100) {
+  h = ((h % 360) + 360) % 360;
+  s = Math.max(0, Math.min(100, s)) / 100;
+  v = Math.max(0, Math.min(100, v)) / 100;
+
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+
+  let r = 0, g = 0, b = 0;
+  if (h < 60) {
+    r = c; g = x; b = 0;
+  } else if (h < 120) {
+    r = x; g = c; b = 0;
+  } else if (h < 180) {
+    r = 0; g = c; b = x;
+  } else if (h < 240) {
+    r = 0; g = x; b = c;
+  } else if (h < 300) {
+    r = x; g = 0; b = c;
+  } else {
+    r = c; g = 0; b = x;
+  }
+
+  const r255 = Math.round((r + m) * 255);
+  const g255 = Math.round((g + m) * 255);
+  const b255 = Math.round((b + m) * 255);
+
+  return (r255 << 16) | (g255 << 8) | b255;
+}
+

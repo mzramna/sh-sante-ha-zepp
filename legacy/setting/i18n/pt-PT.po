@@ -33,3 +33,27 @@ msgstr "Você pode pesquisar o ID da entidade (por exemplo, light.bulb), o domí
 
 msgid "Top"
 msgstr "Topo"
+
+msgid "Favorites"
+msgstr "Dispositivos favoritos (Acesso rápido)"
+
+msgid "Favorite"
+msgstr "Favorito"
+
+msgid "Remove"
+msgstr "Remover"
+
+msgid "NoFavorites"
+msgstr "Nenhum favorito selecionado ainda. Marque ★ Favorito em qualquer entidade abaixo para adicionar aqui!"
+
+msgid "Prev"
+msgstr "Anterior"
+
+msgid "Next"
+msgstr "Próxima"
+
+msgid "Page"
+msgstr "Página"
+
+msgid "DarkMode"
+msgstr "Modo escuro"

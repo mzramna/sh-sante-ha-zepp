@@ -8,7 +8,6 @@ import { refuse } from "./mocks/zos/alarm.js";
 import { nextDelaySeconds } from "../app-service/sync.js";
 import { FEATURES } from "../config/build.js";
 
-await import(new URL("../app-service/sync.js", import.meta.url).href);
 const service = globalThis.__zepp.service;
 
 const realGetApp = globalThis.getApp;

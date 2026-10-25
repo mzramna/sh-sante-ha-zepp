@@ -7,7 +7,22 @@
 //   `attributes` holds only the domain fields the watch uses, copied as HA sends them
 //   (missing ones are left out), except light brightness converted to percent:
 export const ENTITY_ATTRIBUTES = {
-  light: ["brightness_pct", "supported_color_modes", "effect", "effect_list"],
+  light: [
+    "brightness_pct",
+    "supported_color_modes",
+    "color_mode",
+    "color_temp",
+    "min_mireds",
+    "max_mireds",
+    "color_temp_kelvin",
+    "min_color_temp_kelvin",
+    "max_color_temp_kelvin",
+    "hs_color",
+    "rgb_color",
+    "effect",
+    "effect_list",
+  ],
+  sensor: ["device_class", "state_class", "unit_of_measurement"],
   media_player: ["volume_level", "media_title", "media_artist", "supported_features"],
   climate: ["hvac_modes", "temperature", "current_temperature", "min_temp", "max_temp", "target_temp_step"],
   cover: ["current_position", "supported_features"],
@@ -32,6 +47,8 @@ export const METHOD = {
   CAMERA_SNAPSHOT: "CAMERA_SNAPSHOT",
   // {payload} -> {interval: minutes}  (payload: shared/zepp2hass.js shape)
   SYNC_SENSORS: "SYNC_SENSORS",
+  GET_ENERGY: "GET_ENERGY",
+  SET_ENTITY_VISIBILITY: "SET_ENTITY_VISIBILITY",
 };
 
 // settings.settingsStorage keys (phone). The first three keep their 1.x names so

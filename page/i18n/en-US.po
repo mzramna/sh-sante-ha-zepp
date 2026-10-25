@@ -16,6 +16,9 @@ msgstr "Arm home"
 msgid "battery"
 msgstr "Battery"
 
+msgid "brightness"
+msgstr "Brightness"
+
 msgid "camera_disabled"
 msgstr "Camera snapshots are disabled in this build"
 
@@ -27,6 +30,12 @@ msgstr "Refresh"
 
 msgid "close"
 msgstr "Close"
+
+msgid "color"
+msgstr "Color"
+
+msgid "color_temp"
+msgstr "Color Temp"
 
 msgid "current"
 msgstr "Current"
@@ -46,6 +55,12 @@ msgstr "Done"
 msgid "effect"
 msgstr "Effect"
 
+msgid "electricity"
+msgstr "Electricity"
+
+msgid "energy"
+msgstr "Energy"
+
 msgid "entities"
 msgstr "entities"
 
@@ -54,6 +69,9 @@ msgstr "Something went wrong"
 
 msgid "favorites"
 msgstr "Favorites"
+
+msgid "gas"
+msgstr "Gas"
 
 msgid "loading"
 msgstr "Loading..."
@@ -294,4 +312,7 @@ msgstr "Tap again to confirm"
 
 msgid "unlock_action"
 msgstr "Unlock"
+
+msgid "water"
+msgstr "Water"
 

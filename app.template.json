@@ -25,6 +25,7 @@
             "page/home/index",
             "page/entities/index",
             "page/areas/index",
+            "page/energy/index",
             "page/light/index",
             "page/light/effect",
             "page/media_player/index",

@@ -102,3 +102,80 @@ msgstr "Status entity"
 
 msgid "Entity id like sensor.sleep_as_android, or empty"
 msgstr "Entity id like sensor.sleep_as_android, or empty"
+
+msgid "Favorites"
+msgstr "Favorite devices (Quick access)"
+
+msgid "QuickAccessHint"
+msgstr "Devices shown directly on the watch home screen for quick control."
+
+msgid "NoFavoritesHint"
+msgstr "Mark ★ Favorite on entities below to pin them to quick access."
+
+msgid "Remove"
+msgstr "Remove"
+
+msgid "Show only favorites"
+msgstr "Show only favorites"
+
+msgid "Prev"
+msgstr "Prev"
+
+msgid "Next"
+msgstr "Next"
+
+msgid "Theme"
+msgstr "UI Theme"
+
+msgid "Dark"
+msgstr "Dark"
+
+msgid "Light"
+msgstr "Light"
+
+msgid "Areas"
+msgstr "Areas"
+
+msgid "Energy"
+msgstr "Energy"
+
+msgid "Interactive"
+msgstr "Interactive"
+
+msgid "Sensors"
+msgstr "Sensors"
+
+msgid "All"
+msgstr "All"
+
+msgid "Filter type"
+msgstr "Filter type"
+
+msgid "Electricity"
+msgstr "Electricity"
+
+msgid "Water"
+msgstr "Water"
+
+msgid "Gas"
+msgstr "Gas"
+
+msgid "Other"
+msgstr "Other"
+
+msgid "No areas found. Tap Refresh entities to load them."
+msgstr "No areas found. Tap Refresh entities to load them."
+
+msgid "No energy sensors found. Tap Refresh entities to load them."
+msgstr "No energy sensors found. Tap Refresh entities to load them."
+
+msgid "No Area"
+msgstr "No Area"
+
+msgid "Grouped by area from Home Assistant"
+msgstr "Grouped by area from Home Assistant"
+
+msgid "Energy and resource sensors"
+msgstr "Energy and resource sensors"
+
+
