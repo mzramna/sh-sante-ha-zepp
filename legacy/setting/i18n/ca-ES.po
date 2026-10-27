@@ -33,3 +33,17 @@ msgstr "Pots buscar l'ID de l'entitat (p. ex., light.bulb), el domini (p. ex., l
 
 msgid "Top"
 msgstr "Pujar"
+msgid "Interactive"
+msgstr "Interactive"
+
+msgid "Sensors"
+msgstr "Sensors"
+
+msgid "All"
+msgstr "All"
+
+msgid "NoMatch"
+msgstr "NoMatch"
+
+msgid "Favorites"
+msgstr "Favorites"

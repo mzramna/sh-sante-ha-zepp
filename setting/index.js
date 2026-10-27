@@ -33,6 +33,7 @@ const THEME_KEY = "uiTheme"; // UI theme selection ("dark" | "light")
 const ERRORS_KEY = "settingsErrors";
 const MODE_LABELS = { none: "Off", zepp2hass: "zepp2hass", mobile_app: "Mobile app", rest: "REST API" };
 const RED = "#d32f2f";
+export const maskSecret = (t) => (t ? `••••••••${String(t).slice(-4)}` : "");
 
 const THEMES = {
   dark: {
@@ -199,7 +200,16 @@ AppSettingsPage({
           Hint("e.g. https://example.com/"),
           TextInput({ label: gettext("IPExternal"), value: get(SETTING.EXTERNAL_URL), subStyle: inputStyle, onChange: (raw) => store.setItem(SETTING.EXTERNAL_URL, raw.trim()) }),
           Hint(gettext("FromProfile")),
-          TextInput({ label: gettext("LongToken"), value: get(SETTING.TOKEN), subStyle: inputStyle, onChange: (raw) => store.setItem(SETTING.TOKEN, raw.trim()) }),
+          TextInput({
+            label: gettext("LongToken"),
+            // Só o final do token aparece: a chave não fica exposta e o campo não estoura a largura.
+            value: maskSecret(get(SETTING.TOKEN)),
+            subStyle: { ...inputStyle, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" },
+            onChange: (raw) => {
+              const v = String(raw || "").trim();
+              if (v && v !== maskSecret(get(SETTING.TOKEN))) store.setItem(SETTING.TOKEN, v);
+            },
+          }),
           Button({
             label: gettext("Refresh entities"),
             style: buttonStyle,
@@ -237,7 +247,7 @@ AppSettingsPage({
                     saveChecked(store, "zepp2hass", SETTING.ZEPP2HASS_URL, isHttpUrl(url) ? url : null, gettext("Must start with http:// or https://"));
                   },
                 }),
-                errors.zepp2hass && ErrorText(errors.zepp2hass),
+                ...(errors.zepp2hass ? [ErrorText(errors.zepp2hass)] : []),
               ]
             : []),
           ...(mode === "mobile_app"
@@ -264,7 +274,7 @@ AppSettingsPage({
               saveChecked(store, "saaNotify", SETTING.SAA_NOTIFY_SERVICE, service, gettext("Letters, digits and _ only, e.g. mobile_app_pixel_8"));
             },
           }),
-          errors.saaNotify && ErrorText(errors.saaNotify),
+          ...(errors.saaNotify ? [ErrorText(errors.saaNotify)] : []),
           TextInput({
             label: gettext("Status entity"),
             value: get(SETTING.SAA_STATUS_ENTITY),
@@ -274,7 +284,7 @@ AppSettingsPage({
               saveChecked(store, "saaStatus", SETTING.SAA_STATUS_ENTITY, entity, gettext("Entity id like sensor.sleep_as_android, or empty"));
             },
           }),
-          errors.saaStatus && ErrorText(errors.saaStatus),
+          ...(errors.saaStatus ? [ErrorText(errors.saaStatus)] : []),
         ]),
       ];
     };
@@ -310,7 +320,7 @@ AppSettingsPage({
         View({ style: cardStyle }, [
           Heading("Favorites"),
           Hint(gettext("QuickAccessHint")),
-          favorites.length === 0 && Hint(gettext("NoFavoritesHint")),
+          ...(favorites.length === 0 ? [Hint(gettext("NoFavoritesHint"))] : []),
           ...favoriteRows,
         ]),
       ];
@@ -431,8 +441,8 @@ AppSettingsPage({
               store.setItem(PAGE_KEY, "0");
             },
           }),
-          entities.length === 0 && Hint(gettext("Tap Refresh entities to load them from Home Assistant.")),
-          entities.length > 0 && shown.length === 0 && Hint(gettext("No entity matches the filter.")),
+          ...(entities.length === 0 ? [Hint(gettext("Tap Refresh entities to load them from Home Assistant."))] : []),
+          ...(entities.length > 0 && shown.length === 0 ? [Hint(gettext("No entity matches the filter."))] : []),
           ...rows,
           ...paginationControls,
         ]),

@@ -33,3 +33,17 @@ msgstr "エンティティのID（例：light.bulb）、ドメイン（例：lig
 
 msgid "Top"
 msgstr "トップ"
+msgid "Interactive"
+msgstr "Interactive"
+
+msgid "Sensors"
+msgstr "Sensors"
+
+msgid "All"
+msgstr "All"
+
+msgid "NoMatch"
+msgstr "NoMatch"
+
+msgid "Favorites"
+msgstr "Favorites"

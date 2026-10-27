@@ -1,5 +1,11 @@
 import { gettext } from 'i18n'
 
+// Mostra só o final do token: o campo não estoura a largura e a chave não fica exposta na tela.
+const maskToken = (t) => (t ? `••••••••${String(t).slice(-4)}` : "");
+const INTERACTIVE = ["light.", "switch.", "input_boolean.", "media_player.", "script.", "automation."];
+const SENSORS = ["sensor.", "binary_sensor."];
+const TABS = [["access", "Access"], ["favorites", "Favorites"], ["entities", "Entities"]];
+
 AppSettingsPage({
   state: {
     entityList: [],
@@ -192,6 +198,8 @@ AppSettingsPage({
     });
 
     const favorites = this.getFavorites();
+    const rawTab = props.settingsStorage.getItem("settingsActiveTab");
+    const activeTab = TABS.some(([id]) => id === rawTab) ? rawTab : "access";
 
     // 1. Header Card with Title and Dark Theme Toggle
     const headerCard = View({ style: cardStyle }, [
@@ -241,8 +249,13 @@ AppSettingsPage({
       Text({ style: labelStyle }, gettext('LongToken')),
       Text({ style: hintStyle }, gettext('FromProfile')),
       TextInput({
-        settingsKey: "HAToken",
-        subStyle: textInputStyle,
+        value: maskToken(props.settingsStorage.getItem("HAToken")),
+        subStyle: { ...textInputStyle, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" },
+        onChange: (raw) => {
+          const v = String(raw || "").trim();
+          if (!v || v === maskToken(props.settingsStorage.getItem("HAToken"))) return;
+          props.settingsStorage.setItem("HAToken", v);
+        },
       }),
 
       View({
@@ -371,6 +384,7 @@ AppSettingsPage({
 
     // 4. Paginated Entities Section
     const filter = (props.settingsStorage.getItem("filter") || "").toLowerCase().trim();
+    const typeFilter = props.settingsStorage.getItem("entityTypeFilter") || "all";
     const filteredEntities = this.state.entityList.filter((item) => {
       if (!item || !item.key) return false;
       const validDomain = (
@@ -384,6 +398,8 @@ AppSettingsPage({
         item.key.startsWith('automation.')
       );
       if (!validDomain) return false;
+      if (typeFilter === "interactive" && !INTERACTIVE.some((d) => item.key.startsWith(d))) return false;
+      if (typeFilter === "sensors" && !SENSORS.some((d) => item.key.startsWith(d))) return false;
       if (filter) {
         const matchesKey = item.key.toLowerCase().includes(filter);
         const matchesTitle = item.title && item.title.toLowerCase().includes(filter);
@@ -550,6 +566,16 @@ AppSettingsPage({
         }),
       ]),
 
+      View({ style: { display: "flex", flexDirection: "row", marginBottom: "10px" } },
+        [["interactive", "Interactive"], ["sensors", "Sensors"], ["all", "All"]].map(([id, label]) => Button({
+          label: gettext(label),
+          style: { ...pillBtnStyle(typeFilter === id ? theme.primaryBtn : theme.neutralBtn), marginRight: "6px" },
+          onClick: () => {
+            props.settingsStorage.setItem("entityTypeFilter", id);
+            props.settingsStorage.setItem("entityPage", "1");
+          },
+        }))),
+      filteredEntities.length === 0 && Text({ style: hintStyle }, gettext('NoMatch')),
       paginationControls,
       ...entityRows,
       paginationControls,
@@ -563,9 +589,13 @@ AppSettingsPage({
       }
     }, [
       headerCard,
-      accessCard,
-      favoritesCard,
-      entitiesCard,
+      View({ style: { display: "flex", flexDirection: "row", justifyContent: "space-between", marginBottom: "16px" } },
+        TABS.map(([id, label]) => Button({
+          label: gettext(label),
+          style: { ...pillBtnStyle(activeTab === id ? theme.primaryBtn : theme.neutralBtn), flex: 1, margin: "0 3px" },
+          onClick: () => props.settingsStorage.setItem("settingsActiveTab", id),
+        }))),
+      { access: accessCard, favorites: favoritesCard, entities: entitiesCard }[activeTab],
     ]);
   },
 });

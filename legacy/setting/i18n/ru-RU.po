@@ -33,3 +33,18 @@ msgstr "Вы можете искать ID сущности (например, li
 
 msgid "Top"
 msgstr "Вверх"
+
+msgid "Interactive"
+msgstr "Interactive"
+
+msgid "Sensors"
+msgstr "Sensors"
+
+msgid "All"
+msgstr "All"
+
+msgid "NoMatch"
+msgstr "NoMatch"
+
+msgid "Favorites"
+msgstr "Favorites"

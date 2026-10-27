@@ -57,3 +57,15 @@ msgstr "Página"
 
 msgid "DarkMode"
 msgstr "Modo escuro"
+
+msgid "Interactive"
+msgstr "Interativas"
+
+msgid "Sensors"
+msgstr "Sensores"
+
+msgid "All"
+msgstr "Todas"
+
+msgid "NoMatch"
+msgstr "Nenhuma entidade corresponde ao filtro."

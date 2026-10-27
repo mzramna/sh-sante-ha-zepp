@@ -57,3 +57,15 @@ msgstr "Page"
 
 msgid "DarkMode"
 msgstr "Dark mode"
+
+msgid "Interactive"
+msgstr "Interactive"
+
+msgid "Sensors"
+msgstr "Sensors"
+
+msgid "All"
+msgstr "All"
+
+msgid "NoMatch"
+msgstr "No entity matches the filter."
