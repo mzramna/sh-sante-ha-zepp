@@ -334,32 +334,34 @@ AppSettingsPage({
                 alignItems: "center",
               }
             }, [
-              idx > 0 &&
-                Button({
-                  label: "↑",
-                  style: {
-                    ...pillBtnStyle(theme.neutralBtn),
-                    minWidth: "30px",
-                    padding: "0 6px",
-                    height: "26px",
-                    lineHeight: "26px",
-                    marginRight: "4px",
-                  },
-                  onClick: () => this.moveFavorite(idx, idx - 1),
-                }),
-              idx < favorites.length - 1 &&
-                Button({
-                  label: "↓",
-                  style: {
-                    ...pillBtnStyle(theme.neutralBtn),
-                    minWidth: "30px",
-                    padding: "0 6px",
-                    height: "26px",
-                    lineHeight: "26px",
-                    marginRight: "4px",
-                  },
-                  onClick: () => this.moveFavorite(idx, idx + 1),
-                }),
+              ...(idx > 0
+                ? [Button({
+                    label: "↑",
+                    style: {
+                      ...pillBtnStyle(theme.neutralBtn),
+                      minWidth: "30px",
+                      padding: "0 6px",
+                      height: "26px",
+                      lineHeight: "26px",
+                      marginRight: "4px",
+                    },
+                    onClick: () => this.moveFavorite(idx, idx - 1),
+                  })]
+                : []),
+              ...(idx < favorites.length - 1
+                ? [Button({
+                    label: "↓",
+                    style: {
+                      ...pillBtnStyle(theme.neutralBtn),
+                      minWidth: "30px",
+                      padding: "0 6px",
+                      height: "26px",
+                      lineHeight: "26px",
+                      marginRight: "4px",
+                    },
+                    onClick: () => this.moveFavorite(idx, idx + 1),
+                  })]
+                : []),
               Button({
                 label: gettext('Remove'),
                 style: {
@@ -575,10 +577,10 @@ AppSettingsPage({
             props.settingsStorage.setItem("entityPage", "1");
           },
         }))),
-      filteredEntities.length === 0 && Text({ style: hintStyle }, gettext('NoMatch')),
-      paginationControls,
+      ...(filteredEntities.length === 0 ? [Text({ style: hintStyle }, gettext('NoMatch'))] : []),
+      ...(paginationControls ? [paginationControls] : []),
       ...entityRows,
-      paginationControls,
+      ...(paginationControls ? [paginationControls] : []),
     ]);
 
     return Section({
