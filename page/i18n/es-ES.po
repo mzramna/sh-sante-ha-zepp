@@ -16,6 +16,9 @@ msgstr "Armar en casa"
 msgid "battery"
 msgstr "Batería"
 
+msgid "brightness"
+msgstr "Brillo"
+
 msgid "camera_disabled"
 msgstr "Las fotos de cámara están desactivadas en esta versión"
 
@@ -27,6 +30,12 @@ msgstr "Actualizar"
 
 msgid "close"
 msgstr "Cerrar"
+
+msgid "color"
+msgstr "Color"
+
+msgid "color_temp"
+msgstr "Tono"
 
 msgid "current"
 msgstr "Actual"
@@ -46,6 +55,12 @@ msgstr "Hecho"
 msgid "effect"
 msgstr "Efecto"
 
+msgid "electricity"
+msgstr "Electricidad"
+
+msgid "energy"
+msgstr "Energía"
+
 msgid "entities"
 msgstr "entidades"
 
@@ -54,6 +69,9 @@ msgstr "Algo salió mal"
 
 msgid "favorites"
 msgstr "Favoritos"
+
+msgid "gas"
+msgstr "Gas"
 
 msgid "loading"
 msgstr "Cargando..."
@@ -294,4 +312,7 @@ msgstr "Toque otra vez"
 
 msgid "unlock_action"
 msgstr "Desbloquear"
+
+msgid "water"
+msgstr "Agua"
 

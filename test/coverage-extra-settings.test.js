@@ -1,6 +1,6 @@
 // Every handler and branch of setting/index.js in one process: the page is imported once, so V8
 // coverage counts it (settings.test.js re-imports it per test and covers the same behaviour).
-import { test } from "node:test";
+import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { installSettings } from "./helpers/phone.js";
 import { SETTING } from "../shared/protocol.js";
@@ -9,8 +9,11 @@ for (const type of ["View", "Text", "Button", "Toggle", "Section", "TextInput", 
   globalThis[type] = (props = {}, children) => ({ type, props, children });
 }
 
-await import(new URL("../setting/index.js", import.meta.url).href);
-const definition = globalThis.__zepp.settingsPage;
+let definition;
+before(async () => {
+  await import("../setting/index.js");
+  definition = globalThis.__zepp.settingsPage;
+});
 const RED = "#d32f2f";
 const ENTITIES = [
   { key: "light.a", title: "A", value: true },
@@ -65,7 +68,7 @@ test("status line: nothing, a success hint, a failure in red", () => {
 });
 
 test("entities: empty hint, filter with no match, rows with enable, favourite and Top handlers", () => {
-  const { store, build } = open();
+  const { store, build } = open({ settingsActiveTab: "entities" });
   assert.ok(textNodes(build()).includes("Tap Refresh entities to load them from Home Assistant."));
 
   store.set(SETTING.ENTITY_LIST, JSON.stringify(ENTITIES));
@@ -75,8 +78,9 @@ test("entities: empty hint, filter with no match, rows with enable, favourite an
 
   one(tree, "TextInput", "Filter").props.onChange("climate");
   assert.equal(store.get("filter"), "climate");
+  assert.equal(store.get("entityPage"), "0");
   tree = build();
-  assert.equal(ofType(tree, "Toggle").filter((n) => !n.props.label.startsWith("★")).length, 1);
+  assert.equal(ofType(tree, "Toggle").filter((n) => !n.props.label.startsWith("★") && n.props.label !== "Show only favorites").length, 1);
 
   store.set("filter", "");
   tree = build();
@@ -92,6 +96,83 @@ test("entities: empty hint, filter with no match, rows with enable, favourite an
 
   ofType(build(), "Button").find((n) => n.props.label === "Top").props.onClick();
   assert.equal(JSON.parse(store.get(SETTING.ENTITY_LIST))[0].key, "light.a");
+});
+
+test("theme and favorites quick-access section with up, down, remove, and filter toggle", () => {
+  const { store, build } = open({
+    [SETTING.ENTITY_LIST]: JSON.stringify(ENTITIES),
+    [SETTING.FAVORITES]: JSON.stringify(["climate.x", "light.a"]),
+  });
+
+  let tree = build();
+  // Theme selector (Access tab)
+  const themeSelect = one(tree, "Select", "Theme");
+  assert.equal(themeSelect.props.value, "dark");
+  themeSelect.props.onChange("light");
+  assert.equal(store.get("uiTheme"), "light");
+
+  // Favorite quick access buttons (Favorites tab)
+  store.set("settingsActiveTab", "favorites");
+  tree = build();
+  const upButtons = ofType(tree, "Button").filter((n) => n.props.label === "↑");
+  const downButtons = ofType(tree, "Button").filter((n) => n.props.label === "↓");
+  const removeButtons = ofType(tree, "Button").filter((n) => n.props.label === "Remove");
+  assert.equal(upButtons.length, 2);
+  assert.equal(downButtons.length, 2);
+  assert.equal(removeButtons.length, 2);
+
+  // Move climate.x down (step +1)
+  downButtons[0].props.onClick();
+  assert.deepEqual(JSON.parse(store.get(SETTING.FAVORITES)), ["light.a", "climate.x"]);
+
+  // Move climate.x up (step -1)
+  tree = build();
+  ofType(tree, "Button").filter((n) => n.props.label === "↑")[1].props.onClick();
+  assert.deepEqual(JSON.parse(store.get(SETTING.FAVORITES)), ["climate.x", "light.a"]);
+
+  // Remove climate.x
+  tree = build();
+  ofType(tree, "Button").filter((n) => n.props.label === "Remove")[0].props.onClick();
+  assert.deepEqual(JSON.parse(store.get(SETTING.FAVORITES)), ["light.a"]);
+
+  // Show only favorites toggle (Entities tab)
+  store.set("settingsActiveTab", "entities");
+  tree = build();
+  const filterFavToggle = one(tree, "Toggle", "Show only favorites");
+  assert.equal(filterFavToggle.props.value, false);
+  filterFavToggle.props.onChange(true);
+  assert.equal(store.get("filterFav"), "true");
+  assert.equal(store.get("entityPage"), "0");
+
+  tree = build();
+  const visibleLabels = ofType(tree, "Toggle").map((n) => n.props.label).filter((l) => !l.startsWith("★") && l !== "Show only favorites");
+  assert.deepEqual(visibleLabels, ["A (light.a)"]);
+
+  // Toggle filterFav off
+  one(tree, "Toggle", "Show only favorites").props.onChange(false);
+  assert.equal(store.get("filterFav"), "false");
+});
+
+test("pagination controls for entity list when items exceed PAGE_SIZE", () => {
+  const many = Array.from({ length: 30 }, (_, i) => ({ key: `light.dev_${i}`, title: `Dev ${i}`, value: true }));
+  const { store, build } = open({ settingsActiveTab: "entities", [SETTING.ENTITY_LIST]: JSON.stringify(many) });
+
+  let tree = build();
+  assert.ok(textNodes(tree).includes("1 / 2 (30)"));
+  const nextBtn = ofType(tree, "Button").find((n) => n.props.label === "Next");
+  const prevBtn = ofType(tree, "Button").find((n) => n.props.label === "Prev");
+  assert.ok(nextBtn && prevBtn);
+
+  // Next page
+  nextBtn.props.onClick();
+  assert.equal(store.get("entityPage"), "1");
+
+  tree = build();
+  assert.ok(textNodes(tree).includes("2 / 2 (30)"));
+
+  // Prev page
+  ofType(tree, "Button").find((n) => n.props.label === "Prev").props.onClick();
+  assert.equal(store.get("entityPage"), "0");
 });
 
 test("health data: mode saves, interval appears for any mode but off, URL needs http(s)", () => {

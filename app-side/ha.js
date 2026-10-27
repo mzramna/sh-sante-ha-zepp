@@ -2,6 +2,7 @@
 // failover live in http.js; this file maps HA data to the watch contract.
 import { SETTING, ENTITY_ATTRIBUTES } from "../shared/protocol.js";
 import { DOMAINS } from "../utils/theme.js";
+import { filterEnergy } from "../utils/groups.js";
 import { ENTITY_ID, NAME, parseJson, readList } from "../shared/validate.js";
 import { haRequest, HttpError } from "./http.js";
 
@@ -28,8 +29,16 @@ export function toEntity(raw) {
   for (const key of keys) {
     if (a[key] !== undefined) attributes[key] = a[key];
   }
-  if (domain === "light" && typeof a.brightness === "number") {
-    attributes.brightness_pct = Math.round((a.brightness / 255) * 100);
+  if (domain === "light") {
+    if (typeof a.brightness === "number") {
+      attributes.brightness_pct = Math.round((a.brightness / 255) * 100);
+    }
+    if (attributes.hs_color !== undefined && attributes.hs_color !== null) {
+      attributes.hs_color = Array.isArray(attributes.hs_color) ? attributes.hs_color : Array.from(attributes.hs_color);
+    }
+    if (attributes.rgb_color !== undefined && attributes.rgb_color !== null) {
+      attributes.rgb_color = Array.isArray(attributes.rgb_color) ? attributes.rgb_color : Array.from(attributes.rgb_color);
+    }
   }
   return {
     entity_id: id,
@@ -61,7 +70,9 @@ function entitiesTemplate(ids) {
     `{% set keys = ${JSON.stringify(TEMPLATE_KEYS)} %}{% set ns = namespace(out=[]) %}` +
     `{% for id in ${JSON.stringify(ids)} %}{% set s = states[id] %}{% if s is not none %}` +
     "{% set a = namespace(pairs=[]) %}{% for k in keys %}{% if k in s.attributes %}" +
-    "{% set a.pairs = a.pairs + [[k, s.attributes[k]]] %}{% endif %}{% endfor %}" +
+    "{% set val = s.attributes[k] %}" +
+    "{% if val is iterable and val is not string and val is not mapping %}{% set val = val | list %}{% endif %}" +
+    "{% set a.pairs = a.pairs + [[k, val]] %}{% endif %}{% endfor %}" +
     '{% set ns.out = ns.out + [{"entity_id": id, "state": s.state, "attributes": a.pairs}] %}' +
     "{% endif %}{% endfor %}{{ ns.out | tojson }}"
   );
@@ -143,10 +154,46 @@ export function getConfig() {
   };
 }
 
+export async function getEnergy() {
+  const states = await haRequest("/api/states");
+  const sensorStates = states.filter((s) => s.entity_id && s.entity_id.startsWith("sensor."));
+  const entities = sensorStates.map(toEntity);
+  return filterEnergy(entities);
+}
+
+/** @param {{entity_id?: string, visible?: boolean}} [params] */
+export function setEntityVisibility({ entity_id, visible } = {}) {
+  if (!entity_id) throw new Error("Missing entity_id");
+  const list = readList(get(SETTING.ENTITY_LIST));
+  const isVisible = Boolean(visible);
+  let found = false;
+  const updated = list.map((item) => {
+    if (item && item.key === entity_id) {
+      found = true;
+      return { ...item, value: isVisible };
+    }
+    return item;
+  });
+  if (!found) {
+    updated.push({ key: entity_id, title: entity_id, value: isVisible, area_id: "", area_name: "" });
+  }
+  set(SETTING.ENTITY_LIST, JSON.stringify(updated));
+  return { ok: true, entity_id, visible: isVisible };
+}
+
+function areaMappingTemplate() {
+  return (
+    '{% set ns = namespace(out=[]) %}{% for a in areas() %}' +
+    '{% set ns.out = ns.out + [{"area_id": a, "name": area_name(a), "entities": area_entities(a)}] %}' +
+    '{% endfor %}{{ ns.out | tojson }}'
+  );
+}
+
 const SUPPORTED = new Set(Object.keys(DOMAINS));
 
 // Rebuilds the settings entity list from HA: known entities keep their order and
 // enabled flag, new supported entities are appended disabled, vanished ones dropped.
+// Areas are fetched from HA and associated to entity items.
 export async function refreshEntityList() {
   const states = await haRequest("/api/states");
   const live = new Map();
@@ -155,15 +202,47 @@ export async function refreshEntityList() {
   }
   const titleOf = (s) => (s.attributes && s.attributes.friendly_name) || s.entity_id;
 
+  const areaByEntity = new Map();
+  try {
+    const areas = await renderJson(areaMappingTemplate());
+    if (Array.isArray(areas)) {
+      for (const a of areas) {
+        if (a && a.area_id && Array.isArray(a.entities)) {
+          for (const eId of a.entities) {
+            areaByEntity.set(eId, { area_id: a.area_id, area_name: a.name || a.area_id });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // If HA template fails or HA has no /api/template, area mapping stays empty
+  }
+
   const merged = [];
   const seen = new Set();
   for (const item of readList(get(SETTING.ENTITY_LIST))) {
     if (!item || !live.has(item.key) || seen.has(item.key)) continue;
     seen.add(item.key);
-    merged.push({ key: item.key, title: titleOf(live.get(item.key)), value: item.value === true });
+    const area = areaByEntity.get(item.key) || {};
+    merged.push({
+      key: item.key,
+      title: titleOf(live.get(item.key)),
+      value: item.value === true,
+      area_id: area.area_id || item.area_id || "",
+      area_name: area.area_name || item.area_name || "",
+    });
   }
   for (const [key, s] of live) {
-    if (!seen.has(key)) merged.push({ key, title: titleOf(s), value: false });
+    if (!seen.has(key)) {
+      const area = areaByEntity.get(key) || {};
+      merged.push({
+        key,
+        title: titleOf(s),
+        value: false,
+        area_id: area.area_id || "",
+        area_name: area.area_name || "",
+      });
+    }
   }
   set(SETTING.ENTITY_LIST, JSON.stringify(merged));
   return `${merged.length} entities`;

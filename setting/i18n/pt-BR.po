@@ -102,3 +102,80 @@ msgstr "Entidade de status"
 
 msgid "Entity id like sensor.sleep_as_android, or empty"
 msgstr "ID de entidade como sensor.sleep_as_android, ou vazio"
+
+msgid "Favorites"
+msgstr "Dispositivos favoritos (Acesso rápido)"
+
+msgid "QuickAccessHint"
+msgstr "Dispositivos exibidos direto na tela inicial do relógio para controle rápido."
+
+msgid "NoFavoritesHint"
+msgstr "Marque ★ Favorita nas entidades abaixo para fixá-las no acesso rápido."
+
+msgid "Remove"
+msgstr "Remover"
+
+msgid "Show only favorites"
+msgstr "Mostrar apenas favoritos"
+
+msgid "Prev"
+msgstr "Anterior"
+
+msgid "Next"
+msgstr "Próxima"
+
+msgid "Theme"
+msgstr "Tema da interface"
+
+msgid "Dark"
+msgstr "Escuro"
+
+msgid "Light"
+msgstr "Claro"
+
+msgid "Areas"
+msgstr "Cômodos / Áreas"
+
+msgid "Energy"
+msgstr "Consumo & Energia"
+
+msgid "Interactive"
+msgstr "Interativos"
+
+msgid "Sensors"
+msgstr "Sensores"
+
+msgid "All"
+msgstr "Todos"
+
+msgid "Filter type"
+msgstr "Tipo de filtro"
+
+msgid "Electricity"
+msgstr "Eletricidade"
+
+msgid "Water"
+msgstr "Água"
+
+msgid "Gas"
+msgstr "Gás"
+
+msgid "Other"
+msgstr "Outros"
+
+msgid "No areas found. Tap Refresh entities to load them."
+msgstr "Nenhuma área encontrada. Toque em Atualizar entidades para carregá-las."
+
+msgid "No energy sensors found. Tap Refresh entities to load them."
+msgstr "Nenhum sensor de energia encontrado. Toque em Atualizar entidades para carregá-los."
+
+msgid "No Area"
+msgstr "Sem Área"
+
+msgid "Grouped by area from Home Assistant"
+msgstr "Agrupados por área do Home Assistant com controle de visibilidade."
+
+msgid "Energy and resource sensors"
+msgstr "Sensores de eletricidade, água, gás e consumo geral com visibilidade no relógio."
+
+

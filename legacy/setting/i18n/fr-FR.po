@@ -33,3 +33,18 @@ msgstr "Vous pouvez rechercher l'ID de l'entité (par exemple, light.bulb), le d
 
 msgid "Top"
 msgstr "Haut"
+
+msgid "Interactive"
+msgstr "Interactive"
+
+msgid "Sensors"
+msgstr "Sensors"
+
+msgid "All"
+msgstr "All"
+
+msgid "NoMatch"
+msgstr "NoMatch"
+
+msgid "Favorites"
+msgstr "Favorites"

@@ -33,3 +33,17 @@ msgstr "您可以搜索实体的ID（例如，light.bulb）、域（例如，lig
 
 msgid "Top"
 msgstr "顶部"
+msgid "Interactive"
+msgstr "Interactive"
+
+msgid "Sensors"
+msgstr "Sensors"
+
+msgid "All"
+msgstr "All"
+
+msgid "NoMatch"
+msgstr "NoMatch"
+
+msgid "Favorites"
+msgstr "Favorites"

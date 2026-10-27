@@ -16,7 +16,7 @@ const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SCRIPT = path.join(ROOT, "scripts", "build.js");
 const build = require("../scripts/build.js");
 const config = require("../build.config.js");
-const { parseArgs, resolveVariants, appJson, stage, versionNum } = build;
+const { parseArgs, resolveVariants, appJson, stage, versionNum, resolveZeusBin, prepareRoot } = build;
 
 const DEFAULT_ARGS = { api: "4.0", debug: false, dryRun: false, shape: null, features: {} };
 
@@ -383,7 +383,7 @@ test("the CLI builds the zab: runs zeus in the stage folder and copies the outpu
   const { logs, execCalls, exitCode } = runCli(["--api", "3.6", "--feature", "camera=true"]);
   assert.equal(exitCode, null);
   assert.equal(execCalls.length, 1);
-  assert.deepEqual([execCalls[0].cmd, execCalls[0].args], [process.env.ZEUS_BIN || "zeus", ["build"]]);
+  assert.deepEqual([execCalls[0].cmd, execCalls[0].args], [resolveZeusBin(), ["build"]]);
   assert.equal(execCalls[0].cwd, stageDir("3.6"));
   const nm = path.join(stageDir("3.6"), "node_modules");
   assert.equal(fs.lstatSync(nm).isSymbolicLink(), true);
@@ -541,3 +541,58 @@ test("the CLI passes the legacy targets to zeus", () => {
   assert.match(execCalls[0].args[2], /^amazfit-active,amazfit-balance,/);
   fs.rmSync(path.join(ROOT, "dist", "ha-zepp-api1.0.zab"), { force: true });
 });
+
+test("resolveZeusBin returns ZEUS_BIN environment variable when set", () => {
+  withEnv("ZEUS_BIN", "/custom/zeus/bin", () => {
+    assert.equal(resolveZeusBin(), "/custom/zeus/bin");
+  });
+});
+
+test("resolveZeusBin locates zeus from PATH when available", () => {
+  withEnv("ZEUS_BIN", undefined, () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "zeus-bin-"));
+    const fakeZeus = path.join(dir, "zeus");
+    fs.writeFileSync(fakeZeus, "#!/bin/sh\n", { mode: 0o755 });
+    try {
+      withEnv("PATH", `${dir}:${process.env.PATH || ""}`, () => {
+        assert.equal(resolveZeusBin(), fakeZeus);
+      });
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+test("resolveZeusBin falls back to known location or zeus when PATH is minimal", () => {
+  withEnv("ZEUS_BIN", undefined, () => {
+    withEnv("PATH", "/nonexistent", () => {
+      const bin = resolveZeusBin();
+      assert.ok(typeof bin === "string" && bin.length > 0);
+    });
+  });
+});
+
+test("prepareRoot writes app.json and config/build.js for default API 4.0", () => {
+  const res = prepareRoot("4.0");
+  assert.equal(res.level, "4.0");
+  const appJsonPath = path.join(ROOT, "app.json");
+  const buildJsPath = path.join(ROOT, "config", "build.js");
+  assert.ok(fs.existsSync(appJsonPath));
+  assert.ok(fs.existsSync(buildJsPath));
+  const parsed = JSON.parse(fs.readFileSync(appJsonPath, "utf8"));
+  assert.equal(parsed.runtime.apiVersion.target, "4.0");
+  const buildJs = fs.readFileSync(buildJsPath, "utf8");
+  assert.match(buildJs, /API_LEVEL = "4\.0"/);
+});
+
+test("prepareRoot throws for unknown API profile", () => {
+  assert.throws(() => prepareRoot("99.9"), /Unknown API profile "99\.9"/);
+});
+
+test("the CLI supports --prepare to stage root files without running build", () => {
+  const { logs, execCalls, exitCode } = runCli(["--prepare"]);
+  assert.equal(exitCode, null);
+  assert.equal(execCalls.length, 0);
+  assert.ok(logs.includes("prepared root for API 4.0"));
+});
+

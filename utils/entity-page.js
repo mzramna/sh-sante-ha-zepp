@@ -8,6 +8,7 @@ import { getText } from "@zos/i18n";
 import { METHOD } from "../shared/protocol.js";
 import { COLOR } from "./theme.js";
 import { clear, loading, message, toast } from "./ui.js";
+import { requestOrDirect } from "./direct-http.js";
 
 export const RELOAD_AFTER_ACTION_MS = 1000;
 export const DEBOUNCE_MS = 600;
@@ -47,6 +48,7 @@ export function entityPage({ domain, draw, pollMs = 0, ...rest }) {
         clearInterval(t);
       });
       s.timers.clear();
+      if (typeof rest.onDestroy === "function") rest.onDestroy.call(this);
     },
 
     // setTimeout that is dropped when the page is destroyed.
@@ -69,7 +71,7 @@ export function entityPage({ domain, draw, pollMs = 0, ...rest }) {
     load() {
       const s = this.state;
       if (!s.alive) return Promise.resolve();
-      return this.request({ method: METHOD.GET_ENTITY, params: { entity_id: s.entity_id } }).then(
+      return requestOrDirect(this, { method: METHOD.GET_ENTITY, params: { entity_id: s.entity_id } }).then(
         (entity) => {
           if (!s.alive) return;
           s.entity = entity;
@@ -95,7 +97,7 @@ export function entityPage({ domain, draw, pollMs = 0, ...rest }) {
     act(service, data = {}, svcDomain = domain) {
       const s = this.state;
       if (!s.alive) return Promise.resolve(false);
-      return this.request({
+      return requestOrDirect(this, {
         method: METHOD.CALL_SERVICE,
         params: { domain: svcDomain, service, entity_id: s.entity_id, data },
       }).then(

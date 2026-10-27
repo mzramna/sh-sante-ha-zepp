@@ -33,3 +33,39 @@ msgstr "You can search for an entity id (e.g. light.bulb), a whole domain (e.g. 
 
 msgid "Top"
 msgstr "Top"
+
+msgid "Favorites"
+msgstr "Favorite Devices (Quick Access)"
+
+msgid "Favorite"
+msgstr "Favorite"
+
+msgid "Remove"
+msgstr "Remove"
+
+msgid "NoFavorites"
+msgstr "No favorites selected yet. Star any entity below to add it to quick access!"
+
+msgid "Prev"
+msgstr "Prev"
+
+msgid "Next"
+msgstr "Next"
+
+msgid "Page"
+msgstr "Page"
+
+msgid "DarkMode"
+msgstr "Dark mode"
+
+msgid "Interactive"
+msgstr "Interactive"
+
+msgid "Sensors"
+msgstr "Sensors"
+
+msgid "All"
+msgstr "All"
+
+msgid "NoMatch"
+msgstr "No entity matches the filter."

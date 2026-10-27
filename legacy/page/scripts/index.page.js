@@ -16,6 +16,7 @@ Page({
     dataList: [],
     widgets: [],
     rendered: false,
+    currentPage: 0,
     y: TOP_BOTTOM_OFFSET,
   },
   build() {
@@ -250,12 +251,87 @@ Page({
       return this.createExecutable(item);
     }
   },
+  createPaginationControls(totalPages) {
+    const btnWidth = Math.floor(DEVICE_WIDTH / 3);
+    const btnHeight = 36;
+    const yPos = this.state.y + 6;
+
+    this.createWidget(hmUI.widget.TEXT, {
+      x: 0,
+      y: yPos,
+      w: DEVICE_WIDTH,
+      h: 22,
+      text: `${this.state.currentPage + 1} / ${totalPages}`,
+      text_size: 15,
+      color: 0x888888,
+      align_h: hmUI.align.CENTER_H,
+    });
+
+    const btnY = yPos + 26;
+
+    if (this.state.currentPage > 0) {
+      this.createWidget(hmUI.widget.BUTTON, {
+        x: 20,
+        y: btnY,
+        w: btnWidth,
+        h: btnHeight,
+        text: `◀ ${t("Prev")}`,
+        text_size: 14,
+        radius: 12,
+        normal_color: 0x1e293b,
+        press_color: 0x334155,
+        color: 0xffffff,
+        click_func: () => {
+          this.state.currentPage--;
+          this.createAndUpdateList();
+        },
+      });
+    }
+
+    if (this.state.currentPage < totalPages - 1) {
+      this.createWidget(hmUI.widget.BUTTON, {
+        x: DEVICE_WIDTH - btnWidth - 20,
+        y: btnY,
+        w: btnWidth,
+        h: btnHeight,
+        text: `${t("Next")} ▶`,
+        text_size: 14,
+        radius: 12,
+        normal_color: 0x1e293b,
+        press_color: 0x334155,
+        color: 0xffffff,
+        click_func: () => {
+          this.state.currentPage++;
+          this.createAndUpdateList();
+        },
+      });
+    }
+
+    this.state.y = btnY + btnHeight + 8;
+  },
   createAndUpdateList() {
     this.clearWidgets();
     this.state.rendered = false;
-    this.state.dataList.forEach((item) => {
+
+    const items = (this.state.dataList || []).filter(
+      (item) => item && item.type === "script" && item.state !== "unavailable"
+    );
+    const PAGE_SIZE = 8;
+    const totalPages = Math.ceil(items.length / PAGE_SIZE) || 1;
+    if (this.state.currentPage >= totalPages) {
+      this.state.currentPage = Math.max(0, totalPages - 1);
+    }
+    const start = this.state.currentPage * PAGE_SIZE;
+    const pageItems = items.slice(start, start + PAGE_SIZE);
+
+    pageItems.forEach((item) => {
       this.createElement(item);
     });
+
+    if (totalPages > 1) {
+      this.createPaginationControls(totalPages);
+    }
+
     this.createElement("end");
     this.state.rendered = true;
   },

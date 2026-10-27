@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 // Pages load once per process (openOnce), so V8 coverage counts every test here.
 import { state, reset, respond, openOnce as open, texts, findText, click, clickable, flush } from "./helpers/watch.js";
+import { emitDigitalCrown, emitGesture, GESTURE_LEFT, GESTURE_RIGHT } from "./mocks/zos/interaction.js";
 import { FEATURES } from "../config/build.js";
 import { COLOR, DOMAINS } from "../utils/theme.js";
 import { GROUP_DOMAINS } from "../utils/groups.js";
@@ -17,9 +18,10 @@ const ALL = [LIGHT, SWITCH, SENSOR, SCRIPT];
 
 // Translations used by the pages, so assertions read like the screen.
 const STRINGS = {
-  favorites: "Favorites", devices: "Devices", scripts: "Scripts", sensors: "Sensors", areas: "Areas", sync: "Sync",
+  favorites: "Favorites", devices: "Devices", energy: "Energy", scripts: "Scripts", sensors: "Sensors", areas: "Areas", sync: "Sync",
   done: "Done", action_failed: "Failed", no_entities: "No entities", no_areas: "No areas", entities: "entities",
   sleep_as_android: "Sleep as Android", loading: "Loading", state_on: "On", state_off: "Off",
+  next: "Next", prev: "Prev",
 };
 
 // GET_ENTITIES answers with the entities of `ids` when given, like the phone does.
@@ -82,7 +84,7 @@ test("home without favourites draws only the categories", async () => {
   await hasFeature("appService", false, () => open("page/home/index.js"));
   const t = texts();
   assert.ok(!t.includes("Favorites"), "no favourites heading when none resolve");
-  for (const label of ["Devices", "Scripts", "Sensors", "Areas"]) assert.ok(t.includes(label), label);
+  for (const label of ["Devices", "Energy", "Scripts", "Sensors", "Areas"]) assert.ok(t.includes(label), label);
   assert.ok(!t.includes("Sync"), "sync hidden when no sensor mode and feature off");
 });
 
@@ -130,6 +132,7 @@ test("home category buttons open the entity groups and areas", async () => {
     return state.routes;
   };
   assert.deepEqual(await routeOf("Devices"), [{ type: "push", url: "page/entities/index", params: '{"group":"devices"}' }]);
+  assert.deepEqual(await routeOf("Energy"), [{ type: "push", url: "page/energy/index", params: undefined }]);
   assert.deepEqual(await routeOf("Scripts"), [{ type: "push", url: "page/entities/index", params: '{"group":"scripts"}' }]);
   assert.deepEqual(await routeOf("Sensors"), [{ type: "push", url: "page/entities/index", params: '{"group":"sensors"}' }]);
   assert.deepEqual(await routeOf("Areas"), [{ type: "push", url: "page/areas/index", params: undefined }]);
@@ -161,10 +164,11 @@ test("tapping a favourite with a service runs it, toasts done and reloads the ho
   await open("page/home/index.js");
   state.requests = [];
   await click(clickable("Desk Switch"));
-  assert.deepEqual(state.requests.map((r) => r.method), ["CALL_SERVICE", "GET_ENTITY", "GET_CONFIG", "GET_ENTITIES"]);
+  assert.deepEqual(state.requests.map((r) => r.method), ["CALL_SERVICE", "GET_ENTITY"]);
   assert.deepEqual(state.requests[0].params, { domain: "switch", service: "toggle", entity_id: "switch.s" });
   assert.deepEqual(state.toasts, ["Done"]);
   assert.deepEqual(state.routes, []);
+  assert.ok(texts().includes("Off"), "updated local entity is reflected in render");
 });
 
 test("a failed service call on a favourite toasts the failure and does not reload", async () => {
@@ -385,6 +389,34 @@ test("entities page onDestroy clears its widgets", async () => {
   assert.deepEqual(state.widgets, []);
 });
 
+test("entities page paginates when there are more than 10 entities", async () => {
+  const many = Array.from({ length: 15 }, (_, i) => ent(`light.item_${i}`, `Item ${i}`));
+  setup({ GET_ENTITIES: many });
+  const page = await open("page/entities/index.js", { ids: many.map((e) => e.entity_id), title: "Many" });
+  assert.ok(texts().includes("1/2"));
+  assert.ok(texts().includes("Item 0"));
+  assert.ok(texts().includes("Item 9"));
+  assert.ok(!texts().includes("Item 10"));
+
+  await click(clickable("Next"));
+  assert.ok(texts().includes("2/2"));
+  assert.ok(texts().includes("Item 10"));
+  assert.ok(texts().includes("Item 14"));
+  assert.ok(!texts().includes("Item 0"));
+
+  await click(clickable("Next"));
+  assert.ok(texts().includes("2/2"));
+
+  await click(clickable("Prev"));
+  assert.ok(texts().includes("1/2"));
+  assert.ok(texts().includes("Item 0"));
+
+  await click(clickable("Prev"));
+  assert.ok(texts().includes("1/2"));
+
+  page.onDestroy();
+});
+
 test("entities load that finishes after the page was destroyed does not draw", async () => {
   reset();
   state.strings = { ...STRINGS };
@@ -553,3 +585,103 @@ test("every domain with a tap or a page belongs to exactly one home group", () =
     assert.ok(groups.includes(domain), `${domain} is reachable from home`);
   }
 });
+
+test("area route: toggling device visibility sends SET_ENTITY_VISIBILITY", async () => {
+  setup({
+    GET_AREAS: [{ area_id: "kitchen", name: "Kitchen", entity_ids: ["light.a"] }],
+    GET_ENTITIES: byIds,
+    SET_ENTITY_VISIBILITY: { ok: true },
+  });
+  const page = await open("page/entities/index.js", { area_id: "kitchen", name: "Kitchen" });
+  assert.ok(texts().includes("Kitchen"));
+  assert.ok(texts().includes("Lamp"));
+
+  const visBtn = findText("👁");
+  assert.ok(visBtn, "visibility button shown for area device");
+  state.requests = [];
+  await click(visBtn);
+
+  const req = state.requests.find((r) => r.method === "SET_ENTITY_VISIBILITY");
+  assert.ok(req, "SET_ENTITY_VISIBILITY called");
+  assert.deepEqual(req.params, { entity_id: "light.a", visible: false });
+  assert.ok(texts().includes("✕"), "visibility button toggled to hidden icon");
+  page.onDestroy();
+});
+
+test("entities page: crown scroll and lateral swipe navigates pages", async () => {
+  const many = Array.from({ length: 15 }, (_, i) => ent(`switch.s${i}`, `Switch ${i}`));
+  setup({ GET_ENTITIES: many });
+  const page = await open("page/entities/index.js", { group: "devices" });
+  assert.ok(texts().includes("1/2"));
+
+  // Crown scroll down: page 2
+  emitDigitalCrown(1);
+  await flush();
+  assert.ok(texts().includes("2/2"));
+
+  // Crown scroll up: page 1
+  emitDigitalCrown(-1);
+  await flush();
+  assert.ok(texts().includes("1/2"));
+
+  // Lateral swipe left: page 2
+  const handled = emitGesture(GESTURE_LEFT);
+  await flush();
+  assert.equal(handled, true);
+  assert.ok(texts().includes("2/2"));
+
+  // Lateral swipe right: page 1
+  const handledRight = emitGesture(GESTURE_RIGHT);
+  await flush();
+  assert.equal(handledRight, true);
+  assert.ok(texts().includes("1/2"));
+
+  page.onDestroy();
+});
+
+test("entities page: lateral swipe between areas switches rooms", async () => {
+  setup({
+    GET_AREAS: [
+      { area_id: "kitchen", name: "Kitchen", entity_ids: ["light.a"] },
+      { area_id: "living", name: "Living Room", entity_ids: ["switch.s"] },
+    ],
+    GET_ENTITIES: byIds,
+  });
+  const page = await open("page/entities/index.js", { area_id: "kitchen", name: "Kitchen" });
+  assert.ok(texts().includes("Kitchen"));
+  assert.ok(texts().includes("Lamp"));
+
+  // Swipe left: switches to living room
+  emitGesture(GESTURE_LEFT);
+  await flush();
+  assert.ok(texts().includes("Living Room"));
+  assert.ok(texts().includes("Desk Switch"));
+
+  page.onDestroy();
+});
+
+test("areas page: crown scroll and lateral swipe navigates areas", async () => {
+  const manyAreas = Array.from({ length: 8 }, (_, i) => ({
+    area_id: `area_${i}`,
+    name: `Area ${i}`,
+    entity_ids: [`light.${i}`],
+  }));
+  setup({ GET_AREAS: manyAreas });
+  const page = await open("page/areas/index.js");
+  assert.ok(texts().includes("1/2"));
+  assert.ok(texts().includes("Area 0"));
+
+  // Crown scroll down
+  emitDigitalCrown(1);
+  await flush();
+  assert.ok(texts().includes("2/2"));
+  assert.ok(texts().includes("Area 6"));
+
+  // Lateral swipe right goes back to page 1
+  emitGesture(GESTURE_RIGHT);
+  await flush();
+  assert.ok(texts().includes("1/2"));
+
+  page.onDestroy();
+});
+

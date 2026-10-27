@@ -33,3 +33,39 @@ msgstr "Puedes buscar el ID de la entidad (e.g. light.bulb), el dominio (e.g. li
 
 msgid "Top"
 msgstr "Subir"
+
+msgid "Favorites"
+msgstr "Dispositivos favoritos (Acceso rápido)"
+
+msgid "Favorite"
+msgstr "Favorito"
+
+msgid "Remove"
+msgstr "Eliminar"
+
+msgid "NoFavorites"
+msgstr "Aún no hay favoritos seleccionados. Marca ★ Favorito en cualquier entidad abajo para acceso rápido!"
+
+msgid "Prev"
+msgstr "Anterior"
+
+msgid "Next"
+msgstr "Siguiente"
+
+msgid "Page"
+msgstr "Página"
+
+msgid "DarkMode"
+msgstr "Modo oscuro"
+
+msgid "Interactive"
+msgstr "Interactive"
+
+msgid "Sensors"
+msgstr "Sensors"
+
+msgid "All"
+msgstr "All"
+
+msgid "NoMatch"
+msgstr "NoMatch"

@@ -15,6 +15,8 @@ const HANDLERS = {
   [METHOD.GET_CONFIG]: ha.getConfig,
   [METHOD.CAMERA_SNAPSHOT]: cameraSnapshot,
   [METHOD.SYNC_SENSORS]: syncSensors,
+  [METHOD.GET_ENERGY]: ha.getEnergy,
+  [METHOD.SET_ENTITY_VISIBILITY]: ha.setEntityVisibility,
 };
 
 // Buttons on the settings page write these keys; the side service does the work.

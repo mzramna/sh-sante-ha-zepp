@@ -1,7 +1,8 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { state, reset, respond, texts, findText, click, flush, sleep } from "./helpers/watch.js";
-import { COLOR, CX, DOMAINS } from "../utils/theme.js";
+import { COLOR, CX, DOMAINS, hsvToHex } from "../utils/theme.js";
+import { emitGesture, emitDigitalCrown, GESTURE_LEFT, GESTURE_RIGHT } from "./mocks/zos/interaction.js";
 
 // Each page module is imported once per file (so coverage counts it). A test opens a shallow copy
 // of the definition with a fresh state, and every page a test opens is destroyed afterwards,
@@ -449,3 +450,156 @@ test("media: missing track info and feature bits draw empty lines and no buttons
   assert.equal(texts().filter((t) => t === "").length, 2, "empty title and artist lines");
   assert.equal(findText("%"), undefined);
 });
+
+// ---------- multi-mode light controls ----------
+
+const FULL_LIGHT = {
+  entity_id: LIGHT_ID,
+  name: "Living Lamp",
+  state: "on",
+  attributes: {
+    brightness_pct: 50,
+    color_temp_kelvin: 3000,
+    min_color_temp_kelvin: 2000,
+    max_color_temp_kelvin: 6500,
+    hs_color: [120, 100],
+    supported_color_modes: ["color_temp", "hs"],
+  },
+};
+
+test("light: 3-mode lateral swipe cycles Brightness -> Color Temp -> Color -> Brightness", async () => {
+  reset();
+  const page = await lightPage(FULL_LIGHT);
+  // Mode 1: Brightness
+  assert.ok(findText("Potência (1/3)"));
+  assert.ok(findText("50%"));
+
+  // Lateral swipe left: advances to Mode 2: Color Temp
+  emitGesture(GESTURE_LEFT);
+  await flush();
+  assert.ok(findText("Tonalidade (2/3)"));
+  assert.ok(findText("3000K"));
+
+  // Lateral swipe left: advances to Mode 3: Color
+  emitGesture(GESTURE_LEFT);
+  await flush();
+  assert.ok(findText("Coloração (3/3)"));
+  assert.ok(findText("120°"));
+
+  // Lateral swipe left: wraps around to Mode 1: Brightness
+  emitGesture(GESTURE_LEFT);
+  await flush();
+  assert.ok(findText("Potência (1/3)"));
+
+  // Lateral swipe right from Brightness mode (modeIndex 0) returns false for native back
+  assert.equal(emitGesture(GESTURE_RIGHT), false);
+
+  // Swipe to Mode 2, then swipe right goes back to Mode 1
+  emitGesture(GESTURE_LEFT);
+  await flush();
+  assert.ok(findText("Tonalidade (2/3)"));
+  assert.equal(emitGesture(GESTURE_RIGHT), true);
+  await flush();
+  assert.ok(findText("Potência (1/3)"));
+
+  page.onDestroy();
+});
+
+test("light: color_temp mode sends color_temp_kelvin in turn_on with 250K steps", async () => {
+  reset();
+  const page = await lightPage(FULL_LIGHT);
+  emitGesture(GESTURE_LEFT); // Go to color_temp mode
+  await flush();
+  assert.ok(findText("3000K"));
+
+  // Press + button to jump by step
+  await click(button("+"));
+  assert.ok(findText("3250K"));
+  await sleep(800);
+
+  const calls = sent("CALL_SERVICE");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].params, {
+    domain: "light",
+    service: "turn_on",
+    entity_id: LIGHT_ID,
+    data: { color_temp_kelvin: 3250 },
+  });
+  page.onDestroy();
+});
+
+test("light: color mode sends hs_color and updates arc color dynamically from hue", async () => {
+  reset();
+  const page = await lightPage(FULL_LIGHT);
+  emitGesture(GESTURE_LEFT); // color_temp
+  emitGesture(GESTURE_LEFT); // color
+  await flush();
+  assert.ok(findText("Coloração (3/3)"));
+  assert.ok(findText("120°"));
+
+  // Initial arc color corresponds to hue 120 (Green)
+  const fg = state.widgets.find((w) => w.type === "ARC" && w.props.end_angle !== 45);
+  assert.ok(fg);
+  assert.equal(fg.props.color, hsvToHex(120, 100, 100));
+
+  // Press + button: hue jumps from 120 to 150
+  await click(button("+"));
+  assert.ok(findText("150°"));
+  await sleep(800);
+
+  const calls = sent("CALL_SERVICE");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].params, {
+    domain: "light",
+    service: "turn_on",
+    entity_id: LIGHT_ID,
+    data: { hs_color: [150, 100] },
+  });
+  assert.equal(fg.props.color, hsvToHex(150, 100, 100));
+
+  page.onDestroy();
+});
+
+test("light: tapping outside advances to the next mode in queue", async () => {
+  reset();
+  const page = await lightPage(FULL_LIGHT);
+  assert.ok(findText("Potência (1/3)"));
+
+  // The outside widget is a full-screen FILL_RECT
+  const outside = state.widgets.find((w) => w.type === "FILL_RECT" && w.props.w === 480);
+  assert.ok(outside);
+  await click(outside);
+  assert.ok(findText("Tonalidade (2/3)"), "outside click switched to next mode");
+
+  page.onDestroy();
+});
+
+test("light: center click toggles light", async () => {
+  reset();
+  const page = await lightPage(FULL_LIGHT);
+  const label = findText("50%");
+  assert.ok(label);
+  await click(label);
+  const calls = sent("CALL_SERVICE");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].params, {
+    domain: "light",
+    service: "toggle",
+    entity_id: LIGHT_ID,
+    data: {},
+  });
+  page.onDestroy();
+});
+
+test("light: crown scroll adjusts active mode value", async () => {
+  reset();
+  const page = await lightPage(FULL_LIGHT);
+  assert.ok(findText("50%"));
+
+  emitDigitalCrown(1);
+  await flush();
+  assert.ok(findText("60%"));
+
+  page.onDestroy();
+});
+
